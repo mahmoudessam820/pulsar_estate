@@ -1,9 +1,14 @@
-from fastapi import FastAPI 
+from fastapi import FastAPI
 
+from app.config.settings import settings
+from app.utils.logging import setup_logging
+
+
+setup_logging(settings.log_level)
 
 app = FastAPI(
-    title="Pulsar Estate",
-    version="0.1.0"
+    title=settings.app_name,
+    version=settings.api_version,
 )
 
 
