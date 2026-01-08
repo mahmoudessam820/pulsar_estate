@@ -22,7 +22,7 @@ def test_pipeline_runs():
         crawl_provider=MockCrawler(),
         ai_provider=MockAI(),
     )
-
+    
     result = pipeline.run("Dubai real estate")
 
     assert result["sources"] == 2

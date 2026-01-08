@@ -26,7 +26,7 @@ class PipelineService:
         for url in urls:
             doc = self.crawl_provider.crawl(url)
             documents.append(doc)
-
+            
         insights = self.ai_provider.analyze(documents)
 
         return insights

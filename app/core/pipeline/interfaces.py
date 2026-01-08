@@ -6,18 +6,18 @@ class SearchProvider(ABC):
     @abstractmethod
     def search(self, query: str) -> List[str]:
         """Return a list of URLs"""
-        pass
+        raise NotImplementedError
 
 
 class CrawlProvider(ABC):
     @abstractmethod
     def crawl(self, url: str) -> Dict:
         """Return extracted content + metadata"""
-        pass
+        raise NotImplementedError
 
 
 class AIProvider(ABC):
     @abstractmethod
     def analyze(self, documents: List[Dict]) -> Dict:
         """Return structured insights"""
-        pass
+        raise NotImplementedError
