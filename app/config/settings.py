@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     scheduler_timezone: str = "UTC"
 
+    ollama_api_key: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="DPP_",
