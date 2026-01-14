@@ -4,20 +4,20 @@ from typing import List, Dict
 
 class SearchProvider(ABC):
     @abstractmethod
-    def search(self, query: str) -> List[str]:
+    async def search(self, query: str) -> List[str]:
         """Return a list of URLs"""
         raise NotImplementedError
 
 
 class CrawlProvider(ABC):
     @abstractmethod
-    def crawl(self, url: str) -> Dict:
+    async def crawl(self, url: str) -> Dict:
         """Return extracted content + metadata"""
         raise NotImplementedError
 
 
 class AIProvider(ABC):
     @abstractmethod
-    def analyze(self, documents: List[Dict]) -> Dict:
+    async def analyze(self, documents: List[Dict]) -> Dict:
         """Return structured insights"""
         raise NotImplementedError

@@ -4,6 +4,6 @@ from typing import List
 
 class SearchProviderBase(ABC):
     @abstractmethod
-    def search(self, query: str) -> List[str]:
+    async def search(self, query: str) -> List[str]:
         """Perform a search with the given query string."""
         raise NotImplementedError

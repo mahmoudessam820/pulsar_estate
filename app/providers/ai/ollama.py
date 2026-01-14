@@ -1,6 +1,7 @@
 import json
-import httpx
 from typing import Dict, List
+
+import httpx
 
 from app.providers.ai.base import AIProviderBase
 from app.config.settings import settings
@@ -17,34 +18,34 @@ class OllamaCloudProvider(AIProviderBase):
         self.base_url = settings.ollama_base_url
         self.api_key = settings.ollama_api_key
 
-    def analyze(self, documents: List[Dict]) -> Dict:
+    async def analyze(self, documents: List[Dict]) -> Dict:
         prompt = self._build_prompt(documents)
 
-        response = httpx.post(
-            f"{self.base_url}/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": self.model,
-                "temperature": self.temperature,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a real estate market analyst. "
-                            "Return ONLY valid JSON."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
-                ],
-            },
-            timeout=60,
-        )
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                f"{self.base_url}/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "temperature": self.temperature,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a real estate market analyst. "
+                                "Return ONLY valid JSON."
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        },
+                    ],
+                },
+            )
 
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
@@ -66,17 +67,17 @@ class OllamaCloudProvider(AIProviderBase):
         return f"""
                     Analyze the following real estate articles and return JSON in this format:
 
-                    {{
-                        "summary": "...",
-                        "key_trends": ["...", "..."],
-                        "market_sentiment": "positive|neutral|negative",
-                        "evidence": [
-                            {{
-                            "claim": "...",
-                            "source_url": "..."
-                            }}
-                        ]
-                    }}
+                        {{
+                            "summary": "...",
+                            "key_trends": ["...", "..."],
+                            "market_sentiment": "positive|neutral|negative",
+                            "evidence": [
+                                {{
+                                    "claim": "...",
+                                    "source_url": "..."
+                                }}
+                            ]
+                        }}
 
                     Articles:
                     {sources}

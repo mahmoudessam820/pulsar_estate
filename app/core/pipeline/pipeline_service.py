@@ -18,15 +18,34 @@ class PipelineService:
         self.crawl_provider = crawl_provider
         self.ai_provider = ai_provider
 
-    def run(self, query: str) -> Dict:
-        urls = self.search_provider.search(query)
+    async def run(self, query: str) -> Dict:
+        urls = await self.search_provider.search(query)
 
         documents: List[Dict] = []
 
         for url in urls:
-            doc = self.crawl_provider.crawl(url)
+            doc = await self.crawl_provider.crawl(url)
+
+            if doc.get("error") or not doc.get("content"):
+                continue
+
             documents.append(doc)
 
-        insights = self.ai_provider.analyze(documents)
+        if not documents:
+            return {
+                "error": "No valid documents collected",
+                "documents_collected": 0,
+            }
 
-        return insights
+        insights = await self.ai_provider.analyze(documents)
+
+        return {
+            "query": query,
+            "documents_collected": len(documents),
+            "insights": insights,
+            "sources": [d["url"] for d in documents],
+        }
+
+    async def close(self):
+        if hasattr(self.crawl_provider, "close"):
+            await self.crawl_provider.close()

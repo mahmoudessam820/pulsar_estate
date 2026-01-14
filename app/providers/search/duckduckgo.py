@@ -1,4 +1,5 @@
 from typing import List
+
 from ddgs import DDGS
 
 from app.providers.search.base import SearchProviderBase
@@ -9,7 +10,7 @@ class DuckDuckGoSearchProvider(SearchProviderBase):
     def __init__(self, max_results: int = 10):
         self.max_results = max_results
 
-    def search(self, query: str) -> List[str]:
+    async def search(self, query: str) -> List[str]:
         normalized_query = normalize_query(query)
 
         urls: List[str] = []
