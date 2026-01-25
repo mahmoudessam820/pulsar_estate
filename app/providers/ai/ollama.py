@@ -1,16 +1,22 @@
 import json
+import logging
 from typing import Dict, List
 
 import httpx
+from rich.console import Console
 
 from app.providers.ai.base import AIProviderBase
 from app.config.settings import settings
 
 
+logger = logging.getLogger(__name__)
+console = Console()
+
+
 class OllamaCloudProvider(AIProviderBase):
     def __init__(
         self,
-        model: str = "llama3.1",
+        model: str = "qwen3-vl:235b-instruct-cloud",
         temperature: float = 0.2,
     ):
         self.model = model
@@ -19,38 +25,76 @@ class OllamaCloudProvider(AIProviderBase):
         self.api_key = settings.ollama_api_key
 
     async def analyze(self, documents: List[Dict]) -> Dict:
+        logger.info(
+            "Starting Ollama analysis | model=%s | docs=%d", self.model, len(documents)
+        )
+        console.print(f"[dim]→ Ollama analyze[/dim] ({len(documents)} documents)")
+
         prompt = self._build_prompt(documents)
 
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(
-                f"{self.base_url}/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self.model,
-                    "temperature": self.temperature,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are a real estate market analyst. "
-                                "Return ONLY valid JSON."
-                            ),
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt,
-                        },
-                    ],
-                },
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                console.print(
+                    f"[cyan]Calling Ollama API[/cyan] → {self.model}", style="dim"
+                )
+
+                response = await client.post(
+                    f"{self.base_url}/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self.model,
+                        "temperature": self.temperature,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are a real estate market analyst. "
+                                    "Return ONLY valid JSON."
+                                ),
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt,
+                            },
+                        ],
+                    },
+                )
+
+            response.raise_for_status()
+
+            content = response.json()["choices"][0]["message"]["content"]
+
+            result = self._parse_response(content)
+
+            if "error" in result:
+                logger.warning("Ollama returned invalid JSON | model=%s", self.model)
+                console.print("[yellow]Warning: invalid JSON response[/yellow]")
+            else:
+                logger.info(
+                    "Ollama analysis completed successfully | model=%s", self.model
+                )
+                console.print("[green]✓ Analysis complete[/green]")
+
+            return result
+
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "Ollama API error | status=%d | %s",
+                exc.response.status_code,
+                exc.response.text[:200],
             )
+            console.print(f"[red]API error {exc.response.status_code}[/red]")
 
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
+            return {"error": f"HTTP {exc.response.status_code}", "raw": str(exc)}
 
-        return self._parse_response(content)
+        except Exception as exc:
+            logger.exception("Unexpected error during Ollama analysis")
+            console.print(f"[red]Unexpected error:[/red] {str(exc)}")
+
+            return {"error": str(exc), "raw": None}
 
     def _build_prompt(self, documents: List[Dict]) -> str:
         sources = [

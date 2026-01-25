@@ -8,3 +8,4 @@ EOF
 
 .ruff_cache/
 
+storage/
