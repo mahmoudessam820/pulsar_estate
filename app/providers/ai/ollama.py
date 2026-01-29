@@ -17,7 +17,7 @@ class OllamaCloudProvider(AIProviderBase):
     def __init__(
         self,
         model: str = "qwen3-vl:235b-instruct-cloud",
-        temperature: float = 0.2,
+        temperature: float = 0.2, #  Lower values (like 0.2) make the model more deterministic and factual, while higher values make it more creative and random.
     ):
         self.model = model
         self.temperature = temperature
@@ -51,7 +51,16 @@ class OllamaCloudProvider(AIProviderBase):
                             {
                                 "role": "system",
                                 "content": (
-                                    "You are a real estate market analyst. "
+                                    "You are a trust-first AI assistant for Dubai real estate insights."
+                                    "Use only provided data. "
+                                    "Never invent facts or sources."
+                                    "Express uncertainty clearly."
+                                    "Explain confidence, do not calculate it. "
+                                    "Do NOT:"
+                                    "- Fill gaps with general knowledge."
+                                    "- Assume missing data."
+                                    "- Guess numbers, prices, or dates."
+                                    "If data is insufficient, say so."
                                     "Return ONLY valid JSON."
                                 ),
                             },
@@ -118,9 +127,11 @@ class OllamaCloudProvider(AIProviderBase):
                             "evidence": [
                                 {{
                                     "claim": "...",
+                                    "confidence": 0-100,
                                     "source_url": "..."
                                 }}
-                            ]
+                            ],
+                            "overall_confidence": 0-100
                         }}
 
                     Articles:
