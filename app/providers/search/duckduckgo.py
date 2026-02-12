@@ -13,7 +13,7 @@ console = Console()
 
 
 class DuckDuckGoSearchProvider(SearchProviderBase):
-    def __init__(self, max_results: int = 15):
+    def __init__(self, max_results: int = 10):
         self.max_results = max_results
 
     async def search(self, query: str) -> List[str]:
@@ -27,6 +27,7 @@ class DuckDuckGoSearchProvider(SearchProviderBase):
             results = ddgs.text(
                 normalized_query,
                 max_results=self.max_results,
+                # region="en-ae",
             )
 
             for r in results:
