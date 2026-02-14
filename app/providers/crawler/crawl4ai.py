@@ -1,7 +1,10 @@
+import re
 import logging
-from typing import Dict
+from datetime import datetime
+from typing import Dict, Optional
 
 from rich.console import Console
+from dateutil import parser
 from crawl4ai import AsyncWebCrawler, UndetectedAdapter
 from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig
 from crawl4ai.deep_crawling import DFSDeepCrawlStrategy
@@ -26,6 +29,99 @@ class Crawl4AIProvider(CrawlProviderBase):
     def __init__(self, timeout: int = 20):
         self.timeout = timeout
         self._crawler = None
+
+    def _extract_dates_from_content(self, content: str) -> Optional[datetime]:
+        """
+        Extract publication dates from content using multiple strategies
+        """
+        if not content:
+            return None
+
+        # Common date patterns found in blog posts
+        date_patterns = [
+            # YYYY-MM-DD format
+            r"\b(202[5-6][-/]\d{1,2}[-/]\d{1,2})\b",
+            # DD/MM/YYYY or DD-MM-YYYY format (for 2025-2026)
+            r"\b\d{1,2}[/-]\d{1,2}[/-](202[5-6])\b",
+            # Month DD, YYYY format (for 2025-2026)
+            r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(202[5-6])\b",
+            # DD Month YYYY format (for 2025-2026)
+            r"\b\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b",
+            # Mon DD, YYYY format (for 2025-2026)
+            r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+(202[5-6])\b",
+            # DD Mon YYYY format (for 2025-2026)
+            r"\b\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(202[5-6])\b",
+            # Month YYYY format (for cases like "Last update: January 2026")
+            r"\b(Last update|Next update|Updated|Published|Released):\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b",
+            # Month YYYY without prefix (for cases like "January 2026")
+            r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b",
+            # datetime or dateTime patterns
+            r'\b(datetime|dateTime)\s*[=:]\s*[\'"]*(\d{4}-\d{2}-\d{2}T?\d{2}:\d{2}:\d{2})',
+            # Published/March 15, 2025-2026
+            r"\b(Published|Posted|Updated|Last updated|Published on):\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(202[5-6])\b",
+            # Post published March 15th, 2025-2026
+            r"\b(Post published|Published|Written on|Date posted|Updated):\s*\w+\s+\d{1,2}(?:st|nd|rd|th)?,\s+(202[5-6])\b",
+        ]
+
+        extracted_dates = []
+
+        # Try regex patterns first
+        for pattern in date_patterns:
+            matches = re.findall(
+                pattern, content[:2000], re.IGNORECASE
+            )  # Limit to first 2000 chars for performance
+            for match in matches:
+                try:
+                    # Handle tuple matches (month name groups)
+                    if isinstance(match, tuple):
+                        match_str = " ".join([m for m in match if m])
+                    else:
+                        match_str = match
+
+                    # Clean up the match string
+                    clean_match = re.sub(
+                        r"(Published|Posted|Updated|Last updated|Published on|Post published|Written on|Date posted):\s*",
+                        "",
+                        match_str,
+                        flags=re.IGNORECASE,
+                    )
+                    clean_match = clean_match.strip()
+
+                    parsed_date = parser.parse(clean_match)
+                    extracted_dates.append(parsed_date)
+                except:
+                    continue
+
+        # If no dates found via regex, try more aggressive parsing
+        if not extracted_dates:
+            # Look for dates in first portion of content where publish info is likely
+            content_start = content[
+                :1000
+            ]  # First 1000 characters should contain headers
+            words = content_start.split()
+
+            # Look for patterns like "March 15, 2024" in the beginning
+            for i, word in enumerate(words):
+                if i < len(words) - 2:
+                    potential_phrase = " ".join(
+                        words[i : i + 3]
+                    )  # Check 3-word phrases
+                    try:
+                        # Try to parse potential date phrases
+                        parsed = parser.parse(potential_phrase, fuzzy=True)
+                        # Check if it looks like a reasonable date (not too old/new)
+                        if 1990 <= parsed.year <= 2030:
+                            extracted_dates.append(parsed)
+                    except:
+                        pass
+
+        if extracted_dates:
+            # Return the most recent date (assuming newer dates are more relevant)
+            # Or return the earliest date (assuming first mentioned is publication date)
+
+            return min(extracted_dates)
+
+        return None
 
     async def _get_crawler(self) -> AsyncWebCrawler:
         if self._crawler is None:
@@ -145,11 +241,22 @@ class Crawl4AIProvider(CrawlProviderBase):
                     console.print(
                         f"[green]✓ Crawled successfully[/green] ({len(result.markdown or ''):,} chars)"
                     )
+
+                    # Get initial metadata values
+                    initial_published_at = result.metadata.get("published_date")
+
+                    # If metadata is missing, try to extract from content
+                    final_published_at = initial_published_at
+                    if not final_published_at:
+                        final_published_at = self._extract_dates_from_content(
+                            result.markdown
+                        )
+
                     return {
                         "url": url,
                         "title": result.metadata.get("title"),
                         "content": result.markdown.fit_markdown,
-                        "published_at": result.metadata.get("published_date"),
+                        "published_at": final_published_at,
                         "author": result.metadata.get("author"),
                         "error": None,
                     }

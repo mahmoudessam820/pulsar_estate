@@ -27,6 +27,7 @@ class DuckDuckGoSearchProvider(SearchProviderBase):
             results = ddgs.text(
                 normalized_query,
                 max_results=self.max_results,
+                # region="en-ae",
             )
 
             for r in results:
