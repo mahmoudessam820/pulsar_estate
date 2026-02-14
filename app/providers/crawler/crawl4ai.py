@@ -40,61 +40,72 @@ class Crawl4AIProvider(CrawlProviderBase):
         # Common date patterns found in blog posts
         date_patterns = [
             # YYYY-MM-DD format
-            r'\b(202[5-6][-/]\d{1,2}[-/]\d{1,2})\b',
+            r"\b(202[5-6][-/]\d{1,2}[-/]\d{1,2})\b",
             # DD/MM/YYYY or DD-MM-YYYY format (for 2025-2026)
-            r'\b\d{1,2}[/-]\d{1,2}[/-](202[5-6])\b',
+            r"\b\d{1,2}[/-]\d{1,2}[/-](202[5-6])\b",
             # Month DD, YYYY format (for 2025-2026)
-            r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(202[5-6])\b',
+            r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(202[5-6])\b",
             # DD Month YYYY format (for 2025-2026)
-            r'\b\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b',
+            r"\b\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b",
             # Mon DD, YYYY format (for 2025-2026)
-            r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+(202[5-6])\b',
+            r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+(202[5-6])\b",
             # DD Mon YYYY format (for 2025-2026)
-            r'\b\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(202[5-6])\b',
+            r"\b\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(202[5-6])\b",
             # Month YYYY format (for cases like "Last update: January 2026")
-            r'\b(Last update|Next update|Updated|Published|Released):\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b',
+            r"\b(Last update|Next update|Updated|Published|Released):\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b",
             # Month YYYY without prefix (for cases like "January 2026")
-            r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b',
+            r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(202[5-6])\b",
             # datetime or dateTime patterns
             r'\b(datetime|dateTime)\s*[=:]\s*[\'"]*(\d{4}-\d{2}-\d{2}T?\d{2}:\d{2}:\d{2})',
             # Published/March 15, 2025-2026
-            r'\b(Published|Posted|Updated|Last updated|Published on):\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(202[5-6])\b',
+            r"\b(Published|Posted|Updated|Last updated|Published on):\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(202[5-6])\b",
             # Post published March 15th, 2025-2026
-            r'\b(Post published|Published|Written on|Date posted|Updated):\s*\w+\s+\d{1,2}(?:st|nd|rd|th)?,\s+(202[5-6])\b',
+            r"\b(Post published|Published|Written on|Date posted|Updated):\s*\w+\s+\d{1,2}(?:st|nd|rd|th)?,\s+(202[5-6])\b",
         ]
 
         extracted_dates = []
-        
+
         # Try regex patterns first
         for pattern in date_patterns:
-            matches = re.findall(pattern, content[:2000], re.IGNORECASE)  # Limit to first 2000 chars for performance
+            matches = re.findall(
+                pattern, content[:2000], re.IGNORECASE
+            )  # Limit to first 2000 chars for performance
             for match in matches:
                 try:
                     # Handle tuple matches (month name groups)
                     if isinstance(match, tuple):
-                        match_str = ' '.join([m for m in match if m])
+                        match_str = " ".join([m for m in match if m])
                     else:
                         match_str = match
-                    
+
                     # Clean up the match string
-                    clean_match = re.sub(r'(Published|Posted|Updated|Last updated|Published on|Post published|Written on|Date posted):\s*', '', match_str, flags=re.IGNORECASE)
+                    clean_match = re.sub(
+                        r"(Published|Posted|Updated|Last updated|Published on|Post published|Written on|Date posted):\s*",
+                        "",
+                        match_str,
+                        flags=re.IGNORECASE,
+                    )
                     clean_match = clean_match.strip()
-                    
+
                     parsed_date = parser.parse(clean_match)
                     extracted_dates.append(parsed_date)
                 except:
                     continue
-        
+
         # If no dates found via regex, try more aggressive parsing
         if not extracted_dates:
             # Look for dates in first portion of content where publish info is likely
-            content_start = content[:1000]  # First 1000 characters should contain headers
+            content_start = content[
+                :1000
+            ]  # First 1000 characters should contain headers
             words = content_start.split()
-            
+
             # Look for patterns like "March 15, 2024" in the beginning
             for i, word in enumerate(words):
                 if i < len(words) - 2:
-                    potential_phrase = ' '.join(words[i:i+3])  # Check 3-word phrases
+                    potential_phrase = " ".join(
+                        words[i : i + 3]
+                    )  # Check 3-word phrases
                     try:
                         # Try to parse potential date phrases
                         parsed = parser.parse(potential_phrase, fuzzy=True)
@@ -103,13 +114,13 @@ class Crawl4AIProvider(CrawlProviderBase):
                             extracted_dates.append(parsed)
                     except:
                         pass
-        
+
         if extracted_dates:
             # Return the most recent date (assuming newer dates are more relevant)
             # Or return the earliest date (assuming first mentioned is publication date)
 
             return min(extracted_dates)
-        
+
         return None
 
     async def _get_crawler(self) -> AsyncWebCrawler:
@@ -237,7 +248,9 @@ class Crawl4AIProvider(CrawlProviderBase):
                     # If metadata is missing, try to extract from content
                     final_published_at = initial_published_at
                     if not final_published_at:
-                        final_published_at = self._extract_dates_from_content(result.markdown)
+                        final_published_at = self._extract_dates_from_content(
+                            result.markdown
+                        )
 
                     return {
                         "url": url,

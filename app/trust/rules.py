@@ -33,9 +33,17 @@ DOMAIN_AUTHORITY: Dict[str, float] = {
     "anika-property.com": 0.9,
     "mordorintelligence.com": 0.9,
     "arabianbusiness.com": 0.9,
+    "dxbinteract.com": 0.9,
+    "jamesedition.com": 0.9,
+    "knightfrank.ae": 0.9,
+    "emirates.estate": 0.9,
+    "economymiddleeast.com": 0.9,
+    "miradevelopments.ae": 0.9,
+    "dubai-immo.com": 0.9,
 }
+
 DEFAULT_AUTHORITY = 0.3
-MAX_DAYS = 365 
+MAX_DAYS = 365
 
 
 def source_strength(urls: List[str]) -> float:
@@ -65,7 +73,7 @@ def evidence_coverage(evidence: List[Dict]) -> float:
         return 0.0
 
     backed = [ev for ev in evidence if ev.get("source_url")]
-    
+
     return round(len(backed) / len(evidence), 2)
 
 

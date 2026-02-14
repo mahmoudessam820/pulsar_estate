@@ -44,7 +44,7 @@ class PipelineService:
 
         insights = await self.ai_provider.analyze(documents)
 
-        if len(documents) > 2:
+        if len(documents) >= 5:  # Only calculate confidence if we have enough documents
             confidence = calculate_confidence(documents, insights)
             confidence_explanation = explain_confidence(confidence)
 

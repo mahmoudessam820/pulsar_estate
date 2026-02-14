@@ -32,7 +32,6 @@ def calculate_confidence(
     documents: List[Dict],
     ai_result: Dict,
 ) -> Dict:
-
     urls = [d["url"] for d in documents if d.get("url")]
     published_dates = [
         d.get("published_at") for d in documents if d.get("published_at")
@@ -41,9 +40,7 @@ def calculate_confidence(
     source = source_strength(urls)
     evidence = evidence_coverage(ai_result.get("evidence", []))
 
-    freshness_scores = [
-        freshness_score(date) for date in published_dates
-    ]
+    freshness_scores = [freshness_score(date) for date in published_dates]
     avg_freshness = (
         round(sum(freshness_scores) / len(freshness_scores), 2)
         if freshness_scores
@@ -53,10 +50,7 @@ def calculate_confidence(
     consensus = consensus_score(len(urls))
 
     confidence = (
-        source * 0.4 +
-        evidence * 0.2 +
-        avg_freshness * 0.2 +
-        consensus * 0.2
+        source * 0.4 + evidence * 0.2 + avg_freshness * 0.2 + consensus * 0.2
     ) * 100
 
     score = round(confidence, 1)
