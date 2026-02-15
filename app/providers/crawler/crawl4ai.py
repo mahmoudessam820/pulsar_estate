@@ -1,6 +1,7 @@
 import re
 import logging
-from typing import Dict
+from typing import Dict, Optional
+from datetime import datetime
 from urllib.parse import urlparse
 
 from rich.console import Console
