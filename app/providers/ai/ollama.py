@@ -127,11 +127,9 @@ class OllamaCloudProvider(AIProviderBase):
                             "evidence": [
                                 {{
                                     "claim": "...",
-                                    "confidence": 0-100,
                                     "source_url": "..."
                                 }}
                             ],
-                            "overall_confidence": 0-100
                         }}
 
                     Articles:

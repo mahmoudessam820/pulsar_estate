@@ -6,6 +6,8 @@ from app.core.pipeline.interfaces import (
     AIProvider,
 )
 from app.data.repositories.base import InsightRepositoryBase
+from app.trust.scoring import calculate_confidence
+from app.trust.explainer import explain_confidence
 
 
 class PipelineService:
@@ -41,6 +43,13 @@ class PipelineService:
             }
 
         insights = await self.ai_provider.analyze(documents)
+
+        if len(documents) >= 5:  # Only calculate confidence if we have enough documents
+            confidence = calculate_confidence(documents, insights)
+            confidence_explanation = explain_confidence(confidence)
+
+            insights["confidence"] = confidence
+            insights["confidence_explanation"] = confidence_explanation
 
         result = {
             "query": query,
