@@ -17,7 +17,7 @@ class OllamaCloudProvider(AIProviderBase):
     def __init__(
         self,
         model: str = "qwen3-vl:235b-instruct-cloud",
-        temperature: float = 0.2, #  Lower values (like 0.2) make the model more deterministic and factual, while higher values make it more creative and random.
+        temperature: float = 0.2,  #  Lower values (like 0.2) make the model more deterministic and factual, while higher values make it more creative and random.
     ):
         self.model = model
         self.temperature = temperature
