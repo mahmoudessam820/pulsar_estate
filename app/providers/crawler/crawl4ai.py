@@ -1,7 +1,7 @@
 import re
 import logging
-from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict
+from urllib.parse import urlparse
 
 from rich.console import Console
 from dateutil import parser
@@ -12,6 +12,7 @@ from crawl4ai.async_crawler_strategy import AsyncPlaywrightCrawlerStrategy
 from crawl4ai.content_scraping_strategy import LXMLWebScrapingStrategy
 from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
 from crawl4ai.content_filter_strategy import PruningContentFilter
+from crawl4ai.processors.pdf import PDFContentScrapingStrategy, PDFCrawlerStrategy
 from crawl4ai.deep_crawling.filters import (
     FilterChain,
     ContentTypeFilter,
@@ -213,9 +214,38 @@ class Crawl4AIProvider(CrawlProviderBase):
         logger.info("Crawling URL: %s", url)
         console.print(f"[cyan]→ Crawling[/cyan] {url}")
 
+        # Check if URL is a PDF
+        is_pdf = await self._is_pdf_url(url)
+
         try:
             crawler = await self._get_crawler()
-            results = await crawler.arun(url=url, config=self._config)
+
+            if is_pdf:
+                # Handle PDF URLs with specific PDF processing
+                pdf_config = CrawlerRunConfig(
+                    scraping_strategy=PDFContentScrapingStrategy(
+                        extract_images=False, batch_size=4
+                    ),
+                    verbose=True,
+                )
+
+                # Use PDF-specific crawler strategy
+                pdf_crawler = AsyncWebCrawler(
+                    config=self._browser_config,
+                    crawler_strategy=PDFCrawlerStrategy(),
+                    timeout=self.timeout,
+                )
+                await pdf_crawler.start()
+
+                result = await pdf_crawler.arun(url=url, config=pdf_config)
+
+                await pdf_crawler.close()
+
+                results = [result]
+
+            else:
+                # Handle regular HTML URLs with existing configuration
+                results = await crawler.arun(url=url, config=self._config)
 
             for result in results:
                 if not result.success:
@@ -282,3 +312,12 @@ class Crawl4AIProvider(CrawlProviderBase):
             self._crawler = None
 
             console.print("[dim]Crawler closed[/dim]")
+
+    async def _is_pdf_url(self, url: str) -> bool:
+        """
+        Check if the given URL points to a PDF file.
+        True if the URL appears to be a PDF, False otherwise.
+        """
+        parsed_url = urlparse(url)
+        path = parsed_url.path.lower()
+        return path.endswith(".pdf")
