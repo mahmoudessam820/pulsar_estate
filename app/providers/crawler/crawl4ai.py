@@ -1,6 +1,7 @@
 import re
 import logging
-from typing import Dict
+from typing import Dict, Optional
+from datetime import datetime
 from urllib.parse import urlparse
 
 from rich.console import Console
@@ -28,8 +29,23 @@ console = Console()
 
 class Crawl4AIProvider(CrawlProviderBase):
     def __init__(self, timeout: int = 20):
-        self.timeout = timeout
-        self._crawler = None
+        self.timeout: int = timeout
+
+        # Crawler lifecycle
+        self._crawler: AsyncWebCrawler | None = None
+
+        # Browser & strategy components (lazy-initialized in _get_crawler)
+        self._browser_config: BrowserConfig | None = None
+        self._adapter: UndetectedAdapter | None = None
+        self._strategy: AsyncPlaywrightCrawlerStrategy | None = None
+
+        # Filtering & content processing
+        self._filter_chain: FilterChain | None = None
+        self._prune_filter: PruningContentFilter | None = None
+        self._md_generator: DefaultMarkdownGenerator | None = None
+
+        # Final crawler configuration
+        self._config: CrawlerRunConfig | None = None
 
     def _extract_dates_from_content(self, content: str) -> Optional[datetime]:
         """
@@ -243,6 +259,29 @@ class Crawl4AIProvider(CrawlProviderBase):
 
                 results = [result]
 
+                for result in results:
+                    if result.markdown and hasattr(result.markdown, "raw_markdown"):
+                        console.print(
+                            f"[yellow]✓ PDF crawled successfully[/yellow] ({len(result.markdown.raw_markdown) if result.markdown.raw_markdown else 0:,} chars)"
+                        )
+                        return {
+                            "url": url,
+                            "content": result.markdown.raw_markdown,
+                        }
+                    else:
+                        logger.warning("Empty or invalid PDF crawl result for %s", url)
+                        logger.info(f"Status code: {result.status_code}")
+                        logger.info(
+                            f"Failed to crawl {result.url}: {result.error_message}"
+                        )
+                        console.print(
+                            "[yellow]Warning: empty content returned from PDF crawl[/yellow]"
+                        )
+                        return {
+                            "url": url,
+                            "content": None,
+                            "error": "Empty content from PDF crawl",
+                        }
             else:
                 # Handle regular HTML URLs with existing configuration
                 results = await crawler.arun(url=url, config=self._config)

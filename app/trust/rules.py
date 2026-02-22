@@ -40,6 +40,8 @@ DOMAIN_AUTHORITY: Dict[str, float] = {
     "economymiddleeast.com": 0.9,
     "miradevelopments.ae": 0.9,
     "dubai-immo.com": 0.9,
+    "propertynews.ae": 0.9,
+    "magusproperties.ae": 0.9,
 }
 
 DEFAULT_AUTHORITY = 0.3
