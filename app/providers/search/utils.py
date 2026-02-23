@@ -1,3 +1,6 @@
+from urllib.parse import urlparse
+
+
 def normalize_query(query: str) -> str:
     """
     Normalize and enrich search queries for real estate intelligence.
@@ -72,3 +75,48 @@ def normalize_query(query: str) -> str:
     ]
 
     return f"{query} " + " ".join(base_keywords)
+
+
+def has_meaningful_content(url: str) -> bool:
+    """
+    Check if a URL has meaningful content beyond just the domain.
+
+    Returns True if the URL has:
+    - A non-root path (anything other than empty, '/', or whitespace-only paths)
+    - Query parameters
+    - Fragment identifiers
+
+    Returns False for URLs that are essentially just domains or malformed URLs.
+
+    Examples:
+    - "https://example.com/" -> False (just root path)
+    - "https://example.com" -> False (just domain)
+    - "https://example.com/path" -> True (has path)
+    - "https://example.com/?query=param" -> True (has query)
+    - "https://example.com#fragment" -> True (has fragment)
+    - "https://example.com/   " -> False (path is just whitespace)
+    - "example.com/path" -> False (invalid URL, missing scheme)
+    - "https:///path" -> False (invalid URL, missing domain)
+    """
+    # Clean the input
+    url = url.strip()
+    if not url:
+        return False
+
+    # Validate URL structure
+    try:
+        parsed = urlparse(url)
+        # Check if URL has a scheme and network location (domain)
+        if not parsed.scheme or not parsed.netloc:
+            return False
+    except Exception:
+        return False
+
+    # Check if path is empty, just a slash, or just whitespace
+    is_root_path = parsed.path in ("", "/") or parsed.path.strip() == ""
+
+    # Check if there are query parameters or fragment identifiers
+    has_query_or_fragment = bool(parsed.query) or bool(parsed.fragment)
+
+    # Return True if it has a non-root path OR query/fragment parameters
+    return (not is_root_path) or has_query_or_fragment

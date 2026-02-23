@@ -5,7 +5,7 @@ from ddgs import DDGS
 from rich.console import Console
 
 from app.providers.search.base import SearchProviderBase
-from app.providers.search.utils import normalize_query
+from app.providers.search.utils import normalize_query, has_meaningful_content
 
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ console = Console()
 
 
 class DuckDuckGoSearchProvider(SearchProviderBase):
-    def __init__(self, max_results: int = 15):
+    def __init__(self, max_results: int = 25):
         self.max_results = max_results
 
     async def search(self, query: str) -> List[str]:
@@ -27,12 +27,11 @@ class DuckDuckGoSearchProvider(SearchProviderBase):
             results = ddgs.text(
                 normalized_query,
                 max_results=self.max_results,
-                # region="en-ae",
             )
 
             for r in results:
                 url = r.get("href")
-                if url:
+                if url and has_meaningful_content(url):
                     urls.append(url)
 
         logger.info("DuckDuckGo search finished - found %d urls", len(urls))
