@@ -49,6 +49,16 @@ MAX_DAYS = 365
 
 
 def source_strength(urls: List[str]) -> float:
+    """
+    The function calculates the average authority score for a list of URLs based on their domain
+    authority values.
+    
+    :param urls: A list of URLs for which you want to calculate the source strength
+    :type urls: List[str]
+    :return: The function `source_strength(urls: List[str]) -> float` returns the average authority
+    score of the domains extracted from the list of URLs provided as input. If the list of URLs is
+    empty, it returns 0.0.
+    """
     if not urls:
         return 0.0
 
