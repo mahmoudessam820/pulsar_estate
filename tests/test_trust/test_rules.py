@@ -82,17 +82,10 @@ def test_evidence_coverage_edge_cases():
     evidence = [{"source_url": "a"}, {"source_url": "b"}]
     assert evidence_coverage(evidence) == 1.0
 
-    # # None supported
-    # 🏴‍☠️🐞 Here is bug shuold fix
-    # 🔥 The funtion should consider empty strings and None as falsy, so the coverage should be 0.0, not 0.33
+    # None supported
+    evidence = [{"source_url": ""}, {"source_url": None}, {"source_url": "   "}]
 
-    # evidence = [
-    #     {"source_url": ""},
-    #     {"source_url": None},
-    #     {"source_url": "   "}
-    # ]
-
-    # assert evidence_coverage(evidence) == 0.0
+    assert evidence_coverage(evidence) == 0.0
 
     # Mixed truthy/falsy
     evidence = [
@@ -137,19 +130,21 @@ def test_freshness_score_edge_cases():
     assert freshness_score(None) == 0.0
 
 
-# 🏴‍☠️🐞 Here is bug shuold fix
-# 🔥 the function cannot handle this error: TypeError: strptime() argument 1 must be str, not NotDateTime
+def test_freshness_score_invalid_inputs():
+    assert freshness_score(None) == 0.0
+    assert freshness_score("") == 0.0
+    assert freshness_score("   ") == 0.0
+    assert freshness_score(12345) == 0.0
+    assert freshness_score(object()) == 0.0
 
-# def test_freshness_score_invalid_inputs():
-#     # Non-string and non-datetime
-#     with pytest.raises(TypeError):
-#         freshness_score(12345)
+    class NotDateTime:
+        pass
 
-#     # Test with object that's not datetime or string
-#     class NotDateTime:
-#         pass
-#     with pytest.raises(ValueError):
-#         freshness_score(NotDateTime())
+    assert freshness_score(NotDateTime()) == 0.0
+
+    assert freshness_score("2025-13-01") == 0.0  # invalid month
+    assert freshness_score("bad-date") == 0.0
+    assert freshness_score("2025-04-08 extra") == 0.0  # won't parse
 
 
 # consensus_score tests (unchanged)
@@ -167,9 +162,6 @@ def test_consensus_score_edge_cases():
     # Negative sources (though logically invalid)
     assert consensus_score(-1) == -0.20  # -1/5 = -0.2
 
-    # Fractional sources (though type is int, but Python allows float->int conversion)
-    # But the function expects int, so we test with float to see behavior
-    # However, the type hint is int, but Python won't enforce it
     assert consensus_score(2.7) == 0.54  # 2.7/5 = 0.54
 
 
