@@ -1,6 +1,6 @@
 from typing import List, Dict, Union
 from urllib.parse import urlparse
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 DOMAIN_AUTHORITY: Dict[str, float] = {
@@ -71,33 +71,69 @@ def source_strength(urls: List[str]) -> float:
 
 
 def evidence_coverage(evidence: List[Dict]) -> float:
+    """
+    Computes the fraction of evidence entries that have a meaningful source_url.
+
+    Rules for considering a source valid:
+    - must exist (not missing key)
+    - must be str
+    - must not be empty after stripping whitespace
+
+    Returns 0.0 when:
+    - evidence list is empty
+    - no entry has a valid source_url
+    """
     if not evidence:
         return 0.0
 
-    backed = [ev for ev in evidence if ev.get("source_url")]
+    valid = 0
 
-    return round(len(backed) / len(evidence), 2)
+    for item in evidence:
+        url = item.get("source_url")
+
+        if isinstance(url, str) and url.strip():
+            valid += 1
+
+    return round(valid / len(evidence), 2)
 
 
 def freshness_score(published_date: Union[str, datetime]) -> float:
     if not published_date:
         return 0.0
 
-    try:
-        # Handle both string and datetime inputs
-        if isinstance(published_date, datetime):
-            published = published_date
-        else:
-            published = datetime.strptime(published_date, "%Y-%m-%d")
-    except ValueError:
+    # Convert to datetime
+    if isinstance(published_date, datetime):
+        published = published_date
+    elif isinstance(published_date, str):
+        try:
+            published = datetime.strptime(published_date.strip(), "%Y-%m-%d")
+        except ValueError:
+            return 0.0
+    else:
+        # Not str, not datetime → invalid type
         return 0.0
 
-    days_old = (datetime.utcnow() - published).days
+    # Make both sides timezone-aware (UTC) to avoid naive-vs-aware comparison issues
+    now = datetime.now(timezone.utc)
 
+    if published.tzinfo is None:
+        published = published.replace(tzinfo=timezone.utc)
+    else:
+        published = published.astimezone(timezone.utc)
+
+    # If published in the future → treat as 0 freshness (common heuristic)
+    if published > now:
+        return 0.0
+
+    days_old = (now - published).days
+
+    if days_old < 0:  # safety (shouldn't happen after check above)
+        return 0.0
     if days_old > MAX_DAYS:
         return 0.0
 
-    return round(1 - (days_old / MAX_DAYS), 2)
+    score = 1 - (days_old / MAX_DAYS)
+    return round(max(0.0, min(1.0, score)), 2)  # clamp just in case
 
 
 def consensus_score(num_sources: int) -> float:
