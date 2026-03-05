@@ -52,7 +52,7 @@ def source_strength(urls: List[str]) -> float:
     """
     The function calculates the average authority score for a list of URLs based on their domain
     authority values.
-    
+
     :param urls: A list of URLs for which you want to calculate the source strength
     :type urls: List[str]
     :return: The function `source_strength(urls: List[str]) -> float` returns the average authority
