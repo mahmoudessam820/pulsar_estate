@@ -21,3 +21,24 @@ class JSONInsightRepository(InsightRepositoryBase):
             return None
 
         return json.loads(file_base.read_text())
+
+    async def create_insight_topic(self, topic: Dict) -> Dict:
+        file_path = self.base_path / f"topic-{topic['id']}.json"
+        file_path.write_text(json.dumps(topic, indent=2))
+        return topic
+
+    async def add_version(self, version: Dict) -> None:
+        file_path = self.base_path / f"version-{version['id']}.json"
+        file_path.write_text(json.dumps(version, indent=2))
+
+    async def get_latest_version(self, version_id: str) -> Optional[Dict]:
+        file_path = self.base_path / f"version-{version_id}.json"
+        if file_path.exists():
+            return json.loads(file_path.read_text())
+        return None
+
+    async def load_topics(self, topic_id: str) -> Optional[Dict]:
+        topics = []
+        for file in self.base_path.glob(f"topic-{topic_id}.json"):
+            topics.append(json.loads(file.read_text()))
+        return topics

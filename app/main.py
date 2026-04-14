@@ -2,7 +2,14 @@ from fastapi import FastAPI
 
 from app.config.settings import settings
 from app.utils.logging import setup_logging
-from app.api.routes import health, insights, scheduler, admin
+from app.api.routes import (
+    health,
+    insights,
+    scheduler,
+    admin,
+    insights_history,
+    insight_topic,
+)
 from app.scheduler.bootstrap import start_scheduler, shutdown_scheduler
 
 
@@ -16,10 +23,12 @@ def create_app() -> FastAPI:
     )
 
     # Include API routes
+    app.include_router(admin.router)
     app.include_router(health.router)
     app.include_router(insights.router)
     app.include_router(scheduler.router)
-    app.include_router(admin.router)
+    app.include_router(insights_history.router)
+    app.include_router(insight_topic.router)
 
     # Scheduler setup
     @app.on_event("startup")
