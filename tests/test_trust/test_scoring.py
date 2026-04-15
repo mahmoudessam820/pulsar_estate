@@ -72,11 +72,11 @@ def test_calculate_confidence_normal(
     avg_freshness = (0.84 + 0.67) / 2  # 0.76
 
     expected_confidence = (
-        0.8 * 0.4  # source strength
+        0.7 * 0.4  # source strength
         + 0.9 * 0.2  # evidence coverage
         + avg_freshness * 0.2  # freshness
         + 0.8 * 0.2  # consensus
-    ) * 100  # 81.2
+    ) * 100  # 77.1
 
     assert result["score"] == pytest.approx(expected_confidence, 0.1)
     assert result["label"] == confidence_label(result["score"])

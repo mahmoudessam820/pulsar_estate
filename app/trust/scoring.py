@@ -39,7 +39,7 @@ def calculate_confidence(
 
     source = source_strength(urls)
     evidence = evidence_coverage(ai_result.get("evidence", []))
-
+    # print("from scoring", source)
     freshness_scores = [freshness_score(date) for date in published_dates]
     avg_freshness = (
         round(sum(freshness_scores) / len(freshness_scores), 2)
