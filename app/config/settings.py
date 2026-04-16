@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     ollama_api_key: str = ""
 
+    admin_api_key: str = "super-secret-key"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="DPP_",
