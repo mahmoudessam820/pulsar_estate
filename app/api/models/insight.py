@@ -1,4 +1,5 @@
 from typing import List, Optional
+
 from pydantic import BaseModel
 
 
@@ -13,10 +14,16 @@ class ConfidenceModel(BaseModel):
     sources_count: int
 
 
+class EvidenceItem(BaseModel):
+    claim: str
+    source_url: str
+
+
 class InsightContent(BaseModel):
     summary: Optional[str] = None
     key_trends: Optional[List[str]] = None
     market_sentiment: Optional[str] = None
+    evidence: Optional[List[EvidenceItem]] = None
     confidence: Optional[ConfidenceModel] = None
     confidence_explanation: Optional[str] = None
 

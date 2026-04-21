@@ -5,6 +5,8 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 from rich.console import Console
+
+
 from dateutil import parser
 from crawl4ai import AsyncWebCrawler, UndetectedAdapter
 from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig
@@ -226,6 +228,7 @@ class Crawl4AIProvider(CrawlProviderBase):
 
         return self._crawler
 
+    # pyrefly: ignore [bad-return]
     async def crawl(self, url: str) -> Dict:
         logger.info("Crawling URL: %s", url)
         console.print(f"[cyan]→ Crawling[/cyan] {url}")
@@ -286,6 +289,7 @@ class Crawl4AIProvider(CrawlProviderBase):
                 # Handle regular HTML URLs with existing configuration
                 results = await crawler.arun(url=url, config=self._config)
 
+            # pyrefly: ignore [not-iterable]
             for result in results:
                 if not result.success:
                     logger.warning("Empty or invalid crawl result for %s", url)
