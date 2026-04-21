@@ -22,7 +22,7 @@ class JSONInsightRepository(InsightRepositoryBase):
 
         return json.loads(file_base.read_text())
 
-    async def create_insight_topic(self, topic: Dict) -> Dict:
+    async def create_insight_topic(self, topic: Dict[str, str]) -> Dict:
         file_path = self.base_path / f"topic-{topic['id']}.json"
         file_path.write_text(json.dumps(topic, indent=2))
         return topic

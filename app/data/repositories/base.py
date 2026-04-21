@@ -18,7 +18,7 @@ class InsightRepositoryBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def create_insight_topic(self, topic: str) -> InsightTopic:
+    async def create_insight_topic(self, topic: Dict[str, str]) -> InsightTopic:
         """Create a new insight topic record."""
         raise NotImplementedError
 
