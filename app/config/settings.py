@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     admin_api_key: str = "super-secret-key"
 
+    jwt_secret_key: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="DPP_",
