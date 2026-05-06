@@ -1,44 +1,48 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from passlib.context import CryptContext
 
 from app.auth.models import User
+from app.data.repositories.base import UserRepositoryBase
 
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 class AuthService:
-    def __init__(self):
-        # TEMPLATE: In-memory user store, replace with database latter
-        self.users = {}
+    def __init__(self, user_repo: UserRepositoryBase):
+        self.user_repo = user_repo
 
-    def hash_password(self, password: str) -> str:
+    def _hash_password(self, password: str) -> str:
         return pwd_context.hash(password)
 
-    def verify_password(self, plain: str, hashed: str) -> bool:
+    def _verify_password(self, plain: str, hashed: str) -> bool:
         return pwd_context.verify(plain, hashed)
 
     async def register(self, email: str, password: str) -> User:
+        existing = await self.user_repo.get_by_email(email)
+
+        if existing:
+            raise ValueError("Email already registered")
+
         user = User(
-            id=uuid.uuid4().int,
+            id=str(uuid.uuid4()),
             email=email,
-            password_hash=self.hash_password(password),
-            created_at=datetime.utcnow(),
+            password_hash=self._hash_password(password),
+            created_at=datetime.now(timezone.utc).strftime("%Y, %-m, %-d"),
         )
 
-        self.users[email] = user
+        await self.user_repo.create(user)
 
         return user
 
     async def authenticate(self, email: str, password: str) -> User | None:
-        user = self.users.get(email)
+        user = await self.user_repo.get_by_email(email)
 
         if not user:
             return None
 
-        if not self.verify_password(password, user.password_hash):
+        if not self._verify_password(password, user.password_hash):
             return None
 
         return user

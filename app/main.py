@@ -10,6 +10,7 @@ from app.api.routes import (
     insights_history,
     insight_topic,
     auth,
+    pipeline,
 )
 from app.scheduler.bootstrap import start_scheduler, shutdown_scheduler
 
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
     app.include_router(insights_history.router)
     app.include_router(insight_topic.router)
     app.include_router(auth.router)
+    app.include_router(pipeline.router)
 
     # Scheduler setup
     @app.on_event("startup")
