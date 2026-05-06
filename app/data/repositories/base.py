@@ -4,6 +4,7 @@ from typing import Dict, Optional, List
 from app.data.models.insight_topic import InsightTopic
 from app.data.models.insight_version import InsightVersion
 from app.data.models.insights_history import InsightsHistory
+from app.auth.models import User
 
 
 class InsightRepositoryBase(ABC):
@@ -45,4 +46,36 @@ class InsightsHistoryRepositoryBase(ABC):
 
     @abstractmethod
     async def load_history(self, limit: int) -> List[InsightsHistory]:
+        raise NotImplementedError
+
+
+class UserRepositoryBase(ABC):
+    @abstractmethod
+    async def create(self, user: User) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_role(self, user_id: str, role: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_plan(self, user_id: str, plan: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_by_email(self, email: str) -> Optional[User]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_by_id(self, user_id: str) -> Optional[User]:
+        raise NotImplementedError
+
+
+class UsageRepositoryBase(ABC):
+    @abstractmethod
+    async def count_today(self, user_id: str) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def increment(self, user_id: str) -> None:
         raise NotImplementedError

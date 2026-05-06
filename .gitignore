@@ -10,3 +10,5 @@ EOF
 .ruff_cache/
 
 storage/
+
+notes/
