@@ -55,6 +55,14 @@ class UserRepositoryBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def list_users(self) -> List[User]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_user(self, user_id: str, user_data: dict) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def update_role(self, user_id: str, role: str) -> None:
         raise NotImplementedError
 
@@ -68,6 +76,10 @@ class UserRepositoryBase(ABC):
 
     @abstractmethod
     async def get_by_id(self, user_id: str) -> Optional[User]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_subscription(self, user_id: str, subscription_data: Dict) -> None:
         raise NotImplementedError
 
 

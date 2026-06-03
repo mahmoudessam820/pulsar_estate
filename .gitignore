@@ -7,6 +7,10 @@ __pycache__/
 *.log
 EOF
 
+AGENTS.md
+
+http/
+
 .ruff_cache/
 
 storage/

@@ -1,34 +1,42 @@
-from fastapi import APIRouter, HTTPException, Depends
+import logging
+
+from fastapi import APIRouter, HTTPException, Depends, status
 
 from app.auth.jwt import create_access_token
 from app.api.deps import get_auth_service
+from app.api.schemas import RegisterRequest, loginRequest, AuthResponse, UserPublic
 from app.auth.auth_service import AuthService
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.post("/register")
+@router.post(
+    "/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED
+)
 async def register(
-    email: str,
-    password: str,
+    request: RegisterRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    user = await auth_service.register(email, password)
-    return {"id": user.id, "email": user.email}
+    try:
+        user = await auth_service.register(request.email, request.password)
+        logging.info(f"User registered: {request.email}")
+        return user
+    except Exception as e:
+        logging.error(f"Registration failed for {request.email}: {e}")
+        raise HTTPException(status_code=400, detail="Registration failed")
 
-
-@router.post("/login")
+@router.post("/login", response_model=AuthResponse)
 async def login(
-    email: str,
-    password: str,
+    request: loginRequest,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    user = await auth_service.authenticate(email, password)
+    user = await auth_service.authenticate(request.email, request.password)
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": user.id})
+    token = create_access_token(data={"sub": user.id})
+    logging.info(f"User logged in: {request.email}")
 
-    return {"access_token": token}
+    return AuthResponse(access_token=token, user=user)
