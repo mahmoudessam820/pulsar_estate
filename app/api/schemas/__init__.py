@@ -13,6 +13,16 @@ from .admin import (
     AdminErrorResponse,
 )
 from .auth import RegisterRequest, loginRequest, AuthResponse, UserPublic
+from .insights import InsightResponse
+from .insights_history import InsightsHistory, InsightsHistoryItem
+from .insight_topic import (
+    InsightTopicResponse,
+    TopicVersion,
+    TopicItem,
+    ConfidenceMetrics,
+)
+from .pipeline import PipelineRunRequest
+from .scheduler_status import SchedulerStatusResponse
 
 __all__ = [
     # Admin Schemas
@@ -32,4 +42,18 @@ __all__ = [
     "loginRequest",
     "AuthResponse",
     "UserPublic",
+    # Insight Schemas
+    "InsightResponse",
+    # Insight Topic Schemas
+    "InsightTopicResponse",
+    "TopicVersion",
+    "TopicItem",
+    "ConfidenceMetrics",
+    # Insights History Schemas
+    "InsightsHistory",
+    "InsightsHistoryItem",
+    # Pipeline Schemas
+    "PipelineRunRequest",
+    # Scheduler Status Schemas
+    "SchedulerStatusResponse",
 ]

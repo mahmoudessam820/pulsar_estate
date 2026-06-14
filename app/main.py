@@ -5,7 +5,7 @@ from app.utils.logging import setup_logging
 from app.api.routes import (
     health,
     insights,
-    scheduler,
+    scheduler_status,
     admin,
     insights_history,
     insight_topic,
@@ -29,7 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router)
     app.include_router(health.router)
     app.include_router(insights.router)
-    app.include_router(scheduler.router)
+    app.include_router(scheduler_status.router)
     app.include_router(insights_history.router)
     app.include_router(insight_topic.router)
     app.include_router(auth.router)
