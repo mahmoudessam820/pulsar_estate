@@ -1,1 +1,0 @@
-from .insight import InsightResponse

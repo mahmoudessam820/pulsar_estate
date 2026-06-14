@@ -24,7 +24,10 @@ async def register(
         return user
     except Exception as e:
         logging.error(f"Registration failed for {request.email}: {e}")
-        raise HTTPException(status_code=400, detail="Registration failed")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Registration failed"
+        )
+
 
 @router.post("/login", response_model=AuthResponse)
 async def login(
@@ -34,7 +37,9 @@ async def login(
     user = await auth_service.authenticate(request.email, request.password)
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
 
     token = create_access_token(data={"sub": user.id})
     logging.info(f"User logged in: {request.email}")

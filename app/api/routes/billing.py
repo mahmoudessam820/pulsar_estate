@@ -22,6 +22,12 @@ async def subscribe(
 ):
     service = SubscriptionService(user_repo)
 
+    if current_user.subscription_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already has an active subscription",
+        )
+
     subscription = await service.subscribe_user(
         user_id=current_user.id, plan=request.plan
     )
@@ -44,7 +50,8 @@ async def cancel_subscription(
 ):
     if not current_user.subscription_id:
         raise HTTPException(
-            status_code=400, detail="User does not have an active subscription"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User does not have an active subscription",
         )
 
     service = SubscriptionService(user_repo)

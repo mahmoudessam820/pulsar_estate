@@ -49,6 +49,11 @@ class JSONUserRepository(UserRepositoryBase):
         user["subscription_id"] = user_data.get(
             "subscription_id", user["subscription_id"]
         )
+
+        if user_data.get("subscription_id") == None:
+            user["subscription_id"] = None
+            user["current_period_end"] = None
+
         user["subscription_status"] = user_data.get(
             "subscription_status", user["subscription_status"]
         )
