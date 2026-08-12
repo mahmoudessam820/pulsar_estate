@@ -1,0 +1,22 @@
+# THIS FILE IS ONLY FOR LOCAL DEVELOPMENT
+# Docker Compose automatically merges this with docker-compose.yml locally.
+# It is ignored when deploying to production (e.g., Render).
+
+services:
+  app:
+    # 1. MOUNT LOCAL CODE: Maps your WSL folder to the container's /pulsar_estate folder
+    # This allows hot-reloading and instant code changes without rebuilding the image.
+    volumes:
+      - .:/pulsar_estate
+    
+    # 2. FIX PERMISSIONS: Runs the container as your local WSL user (tito)
+    # This ensures that when Alembic creates a migration file, it is owned by 'tito', 
+    # not 'root' or 'pulsar', preventing the [Errno 13] Permission denied error.
+    user: "${UID:-1000}:${GID:-1000}"
+
+    # 3. HOT RELOADING: Overrides the production CMD to enable Uvicorn's --reload flag
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+    # 4. CRAWL4AI CACHE: Points the cache to a local folder inside the project
+    environment:
+      - CRAWL4_AI_BASE_DIRECTORY=/pulsar_estate/.crawl4ai

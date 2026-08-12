@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
 
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.data.repositories.base import InsightRepositoryBase
 from app.api.deps import get_insight_repository
 from app.api.schemas import InsightResponse
 
+logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/insights", tags=["Insights"])
+
+router = APIRouter(prefix="/api/v1/insights", tags=["Insights"])
 
 
 @router.get(
@@ -18,11 +21,14 @@ router = APIRouter(prefix="/insights", tags=["Insights"])
 async def get_latest_insight(
     repo: InsightRepositoryBase = Depends(get_insight_repository),
 ):
+    logger.info("Fetching the latest insight from database")
     insight = await repo.load_latest()
 
     if not insight:
+        logger.warning("No insights found in database")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No insights found"
         )
 
+    logger.info(f"Successfully retrieved latest insight with ID: {insight.id}")
     return insight
