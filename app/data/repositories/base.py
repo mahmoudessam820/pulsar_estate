@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, List
 
+from app.data.models.insights import Insights
 from app.data.models.insight_topic import InsightTopic
 from app.data.models.insight_version import InsightVersion
 from app.data.models.insights_history import InsightsHistory
@@ -9,12 +10,12 @@ from app.auth.models import User
 
 class InsightRepositoryBase(ABC):
     @abstractmethod
-    async def save(self, data: Dict) -> None:
+    async def save(self, data: Dict[str, str]) -> None:
         """Save insight data to the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    async def load_latest(self) -> Optional[Dict]:
+    async def load_latest(self) -> Optional[Insights]:
         """Load the latest insight data from the repository."""
         raise NotImplementedError
 

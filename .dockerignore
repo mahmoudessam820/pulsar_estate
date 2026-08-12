@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# Virtual Environment (Never copy local venv to Docker)
+venv/
+.venv/
+env/
+
+# Environment Variables (Never copy local secrets to Docker)
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Local Data & Cache
+.crawl4ai/
+storage/
+*.log

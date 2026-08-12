@@ -1,5 +1,8 @@
-from pydantic import BaseModel, Field, HttpUrl, ConfigDict
-from typing import Literal
+import uuid
+from datetime import datetime
+from typing import Literal, Any
+
+from pydantic import BaseModel, Field, HttpUrl, ConfigDict, model_validator
 
 
 # Nested Models
@@ -16,7 +19,6 @@ class EvidenceItem(BaseModel):
             }
         }
     )
-
     claim: str = Field(..., description="The factual claim being made")
     source_url: HttpUrl = Field(..., description="URL to the source document")
 
@@ -38,7 +40,6 @@ class ConfidenceMetrics(BaseModel):
             }
         }
     )
-
     score: float = Field(
         ..., ge=0, le=100, description="Overall confidence score (0-100)"
     )
@@ -48,8 +49,6 @@ class ConfidenceMetrics(BaseModel):
     badge: str = Field(
         ..., description="Emoji badge for UI display", examples=["🔴", "🟡", "🟢"]
     )
-
-    # Component scores (0.0 to 1.0)
     source_strength: float = Field(
         ..., ge=0, le=1, description="Authority score of sources"
     )
@@ -62,14 +61,15 @@ class ConfidenceMetrics(BaseModel):
     consensus: float = Field(
         ..., ge=0, le=1, description="Agreement level across sources"
     )
-
     sources_count: int = Field(..., ge=0, description="Number of sources analyzed")
 
 
 class InsightContent(BaseModel):
     """The core insight analysis and findings"""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True, extra="allow"
+    )  # extra="allow" prevents breaking if AI adds new fields
 
     summary: str = Field(
         ..., description="Executive summary of the insight", max_length=5000
@@ -77,14 +77,12 @@ class InsightContent(BaseModel):
     key_trends: list[str] = Field(
         ..., description="List of key market trends identified", min_length=1
     )
-    market_sentiment: Literal["negative", "neutral", "positive"] = Field(
+    market_sentiment: Literal["negative", "neutral", "positive", "mixed"] = Field(
         ..., description="Overall market sentiment"
     )
-
     evidence: list[EvidenceItem] = Field(
         ..., description="Supporting evidence for claims"
     )
-
     confidence: ConfidenceMetrics = Field(
         ..., description="Confidence scoring breakdown"
     )
@@ -103,6 +101,8 @@ class InsightResponse(BaseModel):
         from_attributes=True,
         json_schema_extra={
             "example": {
+                "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+                "created_at": "2026-07-19T10:00:00Z",
                 "query": "Dubai Luxury Residential Real Estate Market",
                 "documents_collected": 15,
                 "insights": {},
@@ -111,15 +111,36 @@ class InsightResponse(BaseModel):
         },
     )
 
+    # Database traceability fields
+    id: uuid.UUID = Field(..., description="Unique identifier for this insight")
+    created_at: datetime = Field(..., description="When this insight was generated")
+
+    # Core fields
     query: str = Field(
         ..., description="Original search query that generated this insight"
     )
     documents_collected: int = Field(
         ..., ge=0, description="Number of documents analyzed"
     )
-
     insights: InsightContent = Field(..., description="The generated insight analysis")
-
     sources: list[HttpUrl] = Field(
         ..., description="List of source URLs used in analysis"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def map_db_model_to_response(cls, data: Any) -> Any:
+        """
+        Intercepts the SQLAlchemy Insight model and maps the 'raw_ai_output' JSONB column
+        to the nested 'insights' field expected by the API schema.
+        """
+        if hasattr(data, "raw_ai_output"):
+            return {
+                "id": data.id,
+                "created_at": data.created_at,
+                "query": data.query,
+                "documents_collected": data.documents_collected,
+                "insights": data.raw_ai_output,  # Maps JSONB -> Nested Pydantic Model
+                "sources": data.sources,
+            }
+        return data
