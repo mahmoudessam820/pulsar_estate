@@ -1,80 +1,43 @@
+import logging
+from typing import List
 from urllib.parse import urlparse
+
+
+logger = logging.getLogger(__name__)
+
+
+# Define blacklisted domains (without 'www.' for easier matching)
+BLACKLISTED_DOMAINS = {"youtube.com", "tiktok.com"}
 
 
 def normalize_query(query: str) -> str:
     """
-    Normalize and enrich search queries for real estate intelligence.
+    Normalize and enrich search queries without duplicating keywords
+    already present in the query. This prevents timeouts and 403 errors.
     """
 
     base_keywords = [
-        "Dubai real estate",
-        "property market",
-        "Dubai house for sale",
-        "apartments for sale Dubai",
-        "off-plan property UAE",
-        "luxury real estate",
-        "prices",
-        "investment",
-        "trends",
         "United Arab Emirates",
-        "Abu Dhabi",
-        "property market growth in United Arab Emirates",
-        "House prices",
-        "house prices in Abu Dhabi",
-        "house prices in United Arab Emirates",
-        "interest rates in United Arab Emirates",
-        "investment in property",
-        "Price history",
-        "Prices fell",
-        "Prices rose",
-        "Property boom",
-        "Property bubble",
-        "property in Abu Dhabi",
-        "property in United Arab Emirates",
-        "Property news",
-        "Property prices",
-        "Real Estate In",
-        "rent",
-        "rental income",
-        "rental yield",
-        "residential",
-        "Dubai",
         "UAE",
-        "Abu Dhabi",
-        "Property in Dubai",
         "Dubai real estate",
-        "Villas for sale",
-        "Dubai Residential Property Report Q3",
-        "UAE Luxury Residential Real Estate Market",
-        "UAE Luxury Residential Real Estate Market Size",
-        "UAE Luxury Residential Real Estate Market Share",
-        "UAE Luxury Residential Real",
-        "Estate Market Analysis",
-        "UAE Luxury Residential Real Estate Market Trends",
-        "UAE Luxury Residential Real Estate Market Report",
-        "UAE Luxury Residential Real Estate Market Research",
-        "UAE Luxury Residential Real Estate Industry",
-        "UAE Luxury Residential Real Estate Industry Report",
-        "Dubai Land",
-        "Valuation",
-        "Transaction",
-        "DLD",
-        "Service Charge",
-        "Rental Index",
-        "Land Status",
-        "Project Status",
-        "Ejari",
-        "dubai property market forecast",
-        "dubai real estate prices",
-        "dubai property investment opportunities",
-        "dubai property investment",
-        "dubai housing market trends",
-        "buy property in dubai",
-        "dubai real estate outlook",
-        "dubai real estate market analysis",
+        "Abu Dhabi",
+        "Dubai",
+        "Real Estate In",
     ]
 
-    return f"{query} " + " ".join(base_keywords)
+    query_lower = query.lower()
+
+    # Filter out base keywords that are already present in the query
+    missing_keywords = [kw for kw in base_keywords if kw.lower() not in query_lower]
+
+    # Limit to max 3 extra keywords to prevent excessively long queries
+    if missing_keywords:
+        logger.info(
+            "Enriching query with missing keywords: %s", ", ".join(missing_keywords)
+        )
+        return f"{query} {' '.join(missing_keywords[:3])}".strip()
+
+    return query
 
 
 def has_meaningful_content(url: str) -> bool:
@@ -98,6 +61,7 @@ def has_meaningful_content(url: str) -> bool:
     - "example.com/path" -> False (invalid URL, missing scheme)
     - "https:///path" -> False (invalid URL, missing domain)
     """
+
     # Clean the input
     url = url.strip()
     if not url:
@@ -120,3 +84,31 @@ def has_meaningful_content(url: str) -> bool:
 
     # Return True if it has a non-root path OR query/fragment parameters
     return (not is_root_path) or has_query_or_fragment
+
+
+def is_blacklisted(url: str) -> bool:
+    """
+    Check if a URL belongs to a blacklisted domain (e.g., YouTube, TikTok).
+    """
+    try:
+        parsed = urlparse(url)
+        netloc = parsed.netloc.lower()
+
+        # Remove 'www.' prefix for consistent matching
+        if netloc.startswith("www."):
+            netloc = netloc[4:]
+
+        # Check if the domain ends with any blacklisted domain
+        return any(netloc.endswith(domain) for domain in BLACKLISTED_DOMAINS)
+    except Exception:
+        logger.warning("Failed to parse URL: %s", url)
+        return False
+
+
+def filter_blacklisted_urls(urls: List[str]) -> List[str]:
+    """
+    Filter out URLs from the list that belong to blacklisted domains.
+    """
+
+    logger.info("Filter out urls from blacklisted domains")
+    return [url for url in urls if not is_blacklisted(url)]

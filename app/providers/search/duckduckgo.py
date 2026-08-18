@@ -5,7 +5,11 @@ from ddgs import DDGS
 from rich.console import Console
 
 from app.providers.search.base import SearchProviderBase
-from app.providers.search.utils import normalize_query, has_meaningful_content
+from app.providers.search.utils import (
+    normalize_query,
+    has_meaningful_content,
+    filter_blacklisted_urls,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -34,9 +38,17 @@ class DuckDuckGoSearchProvider(SearchProviderBase):
                 if url and has_meaningful_content(url):
                     urls.append(url)
 
+        # Filter out blacklisted URLs
+        filtered_urls = filter_blacklisted_urls(urls)
+
+        # Log how many were removed for transparency
+        filtered_count = len(urls) - len(filtered_urls)
+        if filtered_count > 0:
+            logger.info("Filtered out %d blacklisted URL(s)", filtered_count)
+
         logger.info("DuckDuckGo search finished - found %d urls", len(urls))
         console.print(
             f"[green]✓ Found {len(urls)} link{'s' if len(urls) != 1 else ''}[/]"
         )
 
-        return urls
+        return filtered_urls

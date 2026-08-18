@@ -13,12 +13,14 @@ async def run_daily_pipeline():
     """
     logger.info("Starting daily pipeline execution...")
 
+    pipeline = None
+
     async with AsyncSessionLocal() as db:
         try:
             pipeline = build_pipeline(db=db)
 
             await pipeline.run(
-                "UAE Luxury Residential Real Estate Market Size and Share Report 2024-2029"
+                "latest news about dubai real estate"
             )
 
             logger.info("Daily pipeline execution completed successfully.")
@@ -26,4 +28,5 @@ async def run_daily_pipeline():
             logger.error(f"Daily pipeline execution failed: {str(e)}", exc_info=True)
             raise
         finally:
-            await pipeline.close()
+            if pipeline:
+                await pipeline.close()

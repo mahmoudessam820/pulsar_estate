@@ -1,4 +1,5 @@
 import uuid
+import logging
 from datetime import datetime, timezone
 from typing import List, Dict
 
@@ -13,6 +14,9 @@ from app.data.repositories.base import (
 )
 from app.trust.scoring import calculate_confidence
 from app.trust.explainer import explain_confidence
+
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineService:
@@ -43,6 +47,16 @@ class PipelineService:
 
         try:
             urls = await self.search_provider.search(query)
+
+            if len(urls) <= 7:
+                logger.warning(
+                    f"Not enough URLs found for this query '{query}'. Found {len(urls)} URLs."
+                )
+
+                return {
+                    "error": "Not enough URLs found for this query",
+                    "urls_found": len(urls),
+                }
 
             documents: List[Dict] = []
 
