@@ -43,7 +43,7 @@ class ConfidenceMetrics(BaseModel):
     score: float = Field(
         ..., ge=0, le=100, description="Overall confidence score (0-100)"
     )
-    label: Literal["Low", "Moderate", "High"] = Field(
+    label: Literal["Low", "Very Low", "Moderate", "High", "Very High"] = Field(
         ..., description="Human-readable confidence level"
     )
     badge: str = Field(

@@ -18,7 +18,7 @@ console = Console()
 class OllamaCloudProvider(AIProviderBase):
     def __init__(
         self,
-        model: str = "minimax-m3:cloud", 
+        model: str = "minimax-m3:cloud",
         temperature: float = 0.2,  # Lower values (like 0.2) make the model more deterministic and factual, while higher values make it more creative and random.
     ):
         self.model = model
@@ -26,7 +26,7 @@ class OllamaCloudProvider(AIProviderBase):
         self.base_url = settings.ollama_base_url
         self.api_key = settings.ollama_api_key
         # Limit concurrent API calls to 3 to avoid hitting the cloud provider's 429 rate limit.
-        self.semaphore = asyncio.Semaphore(3)  
+        self.semaphore = asyncio.Semaphore(3)
 
     async def analyze(self, documents: List[Dict]) -> Dict:
         logger.info(
@@ -193,6 +193,7 @@ class OllamaCloudProvider(AIProviderBase):
                     response.raise_for_status()
                     content = response.json()["choices"][0]["message"]["content"]
                     return self._parse_response(content)
+
             except httpx.HTTPStatusError as e:
                 # Specifically handle 429 Rate Limits with backoff
                 if e.response.status_code == 429:
@@ -217,6 +218,20 @@ class OllamaCloudProvider(AIProviderBase):
                     "error": f"HTTP {e.response.status_code}",
                     "raw_output": e.response.text[:500],
                 }
+
+            # Catch TimeoutException (which explicitly includes ConnectTimeout and ReadTimeout)
+            except httpx.TimeoutException as e:
+                logger.warning(
+                    f"Ollama timeout (Attempt {attempt + 1}/{max_retries}). Retrying in 3s... Error: {e}"
+                )
+                console.print(
+                    f"[yellow]Warning: Ollama timeout (Attempt {attempt + 1}/{max_retries}). Retrying in 3s...[/yellow]"
+                )
+                if attempt == max_retries - 1:
+                    return {"error": f"Timeout after {max_retries} retries: {str(e)}"}
+                await asyncio.sleep(3)
+                continue  # Proceed to next retry iteration
+
             except (httpx.ReadError, httpx.ConnectError) as e:
                 logger.warning(
                     f"Ollama connection dropped (Attempt {attempt + 1}/{max_retries}). Retrying in 2s..."
@@ -229,6 +244,8 @@ class OllamaCloudProvider(AIProviderBase):
                         "error": f"Connection dropped after {max_retries} retries: {str(e)}"
                     }
                 await asyncio.sleep(2)
+                continue
+
             except Exception as e:
                 logger.exception("Unexpected error during Ollama API call")
                 console.print(f"[red]Unexpected error:[/red] {str(e)}")

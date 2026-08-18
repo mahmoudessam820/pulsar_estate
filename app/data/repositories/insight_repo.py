@@ -32,7 +32,7 @@ class PostgresInsightRepository(InsightRepositoryBase):
 
         # Extract the nested 'insights' object first
         insights_obj = data.get("insights", {})
-        
+
         # Check for 'summary' inside the 'insights' object
         summary = insights_obj.get("summary")
         if not summary:
@@ -50,7 +50,7 @@ class PostgresInsightRepository(InsightRepositoryBase):
             new_insight = Insights(
                 query=data.get("query"),
                 documents_collected=data.get("documents_collected", 0),
-                summary=summary, # Use the correctly extracted summary
+                summary=summary,  # Use the correctly extracted summary
                 confidence_score=confidence_obj.get("score"),
                 confidence_label=confidence_obj.get("label"),
                 confidence_explanation=insights_obj.get("confidence_explanation"),
