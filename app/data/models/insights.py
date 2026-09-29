@@ -2,19 +2,27 @@ import uuid
 from datetime import datetime
 
 from uuid_utils import uuid7
-from sqlalchemy import String, Integer, DateTime, Text, func, Float
+from sqlalchemy import String, Integer, DateTime, Text, func, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
 
-class Insights(Base):
+class Insight(Base):
     __tablename__ = "insights"
 
     # Primary Key: UUIDv7
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid7
+    )
+
+    # Foreign Key to users tabl
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # Core Query Metadata

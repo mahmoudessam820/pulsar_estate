@@ -1,12 +1,11 @@
-import json
+import uuid
 import logging
-from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.data.models.insights import Insights
+from app.data.models.insights import Insight
 from app.data.repositories.base import InsightRepositoryBase
 
 
@@ -17,7 +16,7 @@ class PostgresInsightRepository(InsightRepositoryBase):
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def save(self, data: Dict[str, Any]) -> None:
+    async def save(self, data: Dict[str, Any]) -> Dict:
         """
         Saves insight data to PostgreSQL.
         Extracts key fields for relational querying, and stores the full AI output in JSONB.
@@ -46,11 +45,16 @@ class PostgresInsightRepository(InsightRepositoryBase):
             # Extract confidence from the nested 'insights' object
             confidence_obj = insights_obj.get("confidence", {})
 
+            # Safely convert string user_id to UUID, or None if missing/global
+            user_id_str = data.get("user_id")
+            user_uuid = uuid.UUID(user_id_str) if user_id_str else None
+
             # Create a new Insights record
-            new_insight = Insights(
+            new_insight = Insight(
+                user_id=user_uuid,
                 query=data.get("query"),
                 documents_collected=data.get("documents_collected", 0),
-                summary=summary,  # Use the correctly extracted summary
+                summary=summary,
                 confidence_score=confidence_obj.get("score"),
                 confidence_label=confidence_obj.get("label"),
                 confidence_explanation=insights_obj.get("confidence_explanation"),
@@ -70,11 +74,11 @@ class PostgresInsightRepository(InsightRepositoryBase):
             logger.error(f"Failed to save insight to database: {str(e)}", exc_info=True)
             raise
 
-    async def load_latest(self) -> Insights:
+    async def load_latest(self) -> Insight:
         """Load the most recently created insight from db."""
         try:
             result = await self.db.execute(
-                select(Insights).order_by(Insights.created_at.desc()).limit(1)
+                select(Insight).order_by(Insight.created_at.desc()).limit(1)
             )
             insight = result.scalar_one_or_none()
             if insight:
@@ -86,53 +90,24 @@ class PostgresInsightRepository(InsightRepositoryBase):
             logger.error(f"Failed to load latest insight: {str(e)}", exc_info=True)
             raise
 
-    async def create_insight_topic(self, topic: Dict[str, str]):
-        raise NotImplementedError("Pending migration of InsightTopic table")
-
-    async def add_version(self, version):
-        raise NotImplementedError("Pending migration of InsightVersion table")
-
-    async def get_latest_version(self, insight_id):
-        raise NotImplementedError("Pending migration of InsightVersion table")
-
-    async def load_topics(self, topic_id: str):
-        raise NotImplementedError("Pending migration of InsightTopic table")
-
-
-class JSONInsightRepository(InsightRepositoryBase):
-    def __init__(self, base_path: str = "storage/insights"):
-        self.base_path = Path(base_path)
-        self.base_path.mkdir(parents=True, exist_ok=True)
-
-    async def save(self, data: Dict) -> None:
-        file_path = self.base_path / "latest.json"
-        file_path.write_text(json.dumps(data, indent=2))
-
-    async def load_latest(self) -> Optional[Dict]:
-        file_base = self.base_path / "latest.json"
-
-        if not file_base.exists():
-            return None
-
-        return json.loads(file_base.read_text())
-
-    async def create_insight_topic(self, topic: Dict[str, str]) -> Dict:
-        file_path = self.base_path / f"topic-{topic['id']}.json"
-        file_path.write_text(json.dumps(topic, indent=2))
-        return topic
-
-    async def add_version(self, version: Dict) -> None:
-        file_path = self.base_path / f"version-{version['id']}.json"
-        file_path.write_text(json.dumps(version, indent=2))
-
-    async def get_latest_version(self, version_id: str) -> Optional[Dict]:
-        file_path = self.base_path / f"version-{version_id}.json"
-        if file_path.exists():
-            return json.loads(file_path.read_text())
-        return None
-
-    async def load_topics(self, topic_id: str) -> Optional[Dict]:
-        topics = []
-        for file in self.base_path.glob(f"topic-{topic_id}.json"):
-            topics.append(json.loads(file.read_text()))
-        return topics
+    async def load_latest_for_user(self, user_id: uuid.UUID) -> Optional[Insight]:
+        """Load the most recently created insight for a specific user."""
+        try:
+            result = await self.db.execute(
+                select(Insight)
+                .where(Insight.user_id == user_id)
+                .order_by(Insight.created_at.desc())
+                .limit(1)
+            )
+            insight = result.scalar_one_or_none()
+            if insight:
+                logger.debug(f"Loaded latest insight {insight.id} for user {user_id}")
+            else:
+                logger.debug(f"No insights found for user {user_id}")
+            return insight
+        except Exception as e:
+            logger.error(
+                f"Failed to load latest insight for user {user_id}: {str(e)}",
+                exc_info=True,
+            )
+            raise

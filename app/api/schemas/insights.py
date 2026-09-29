@@ -91,6 +91,15 @@ class InsightContent(BaseModel):
     )
 
 
+class OnDemandInsightRequest(BaseModel):
+    query: str = Field(
+        ...,
+        min_length=3,
+        max_length=500,
+        description="The market query to analyze (e.g., 'Dubai Marina luxury trends 2026')",
+    )
+
+
 # Response Schema
 
 
@@ -144,3 +153,10 @@ class InsightResponse(BaseModel):
                 "sources": data.sources,
             }
         return data
+
+
+class OnDemandInsightResponse(BaseModel):
+    pipeline_run_id: uuid.UUID
+    status: str
+    message: str
+    duration_seconds: float

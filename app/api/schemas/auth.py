@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 
 
 # Request Schemas
@@ -7,7 +9,8 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
 
     @field_validator("password")
-    def password_strength(cls, value):
+    @classmethod
+    def password_strength(cls, value: str) -> str:
         if not any(char.isupper() for char in value):
             raise ValueError("Password must contain at least one uppercase letter")
         if not any(char.isdigit() for char in value):
@@ -17,28 +20,33 @@ class RegisterRequest(BaseModel):
         return value
 
 
-class loginRequest(BaseModel):
+class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
 
 # Response Schemas
-class AuthResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: "UserPublic"  # Forward reference
-
-
 class UserPublic(BaseModel):
-    id: str
+    id: UUID
     email: EmailStr
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    """
+    Pydantic's from_attributes=True reads the SQLAlchemy object, 
+    and its built-in type coercion automatically converts the uuid.UUID to a str and datetime to an ISO string.
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserPublic  # Forward reference
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Token Payload (internal)
 class TokenPayload(BaseModel):
-    sub: int  # user id
+    sub: str  # user id
     exp: int
