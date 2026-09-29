@@ -10,9 +10,10 @@ __pycache__/
 EOF
 
 AGENTS.md
-test_db.py
-test_ollama_api.py
+
+generate_fk_migration.py
 
 http/
 storage/
 notes/
+dev_scripts/

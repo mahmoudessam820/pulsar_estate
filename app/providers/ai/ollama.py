@@ -18,7 +18,7 @@ console = Console()
 class OllamaCloudProvider(AIProviderBase):
     def __init__(
         self,
-        model: str = "minimax-m3:cloud",
+        model: str = "gpt-oss:120b-cloud",
         temperature: float = 0.2,  # Lower values (like 0.2) make the model more deterministic and factual, while higher values make it more creative and random.
     ):
         self.model = model

@@ -1,7 +1,5 @@
-import uuid
 import logging
-from datetime import datetime, timezone
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from app.core.pipeline.interfaces import (
     SearchProvider,
@@ -10,7 +8,6 @@ from app.core.pipeline.interfaces import (
 )
 from app.data.repositories.base import (
     InsightRepositoryBase,
-    InsightsHistoryRepositoryBase,
 )
 from app.trust.scoring import calculate_confidence
 from app.trust.explainer import explain_confidence
@@ -31,20 +28,17 @@ class PipelineService:
         crawl_provider: CrawlProvider,
         ai_provider: AIProvider,
         insight_repository: InsightRepositoryBase,
-        insights_history_repository: InsightsHistoryRepositoryBase,
     ):
         self.search_provider = search_provider
         self.crawl_provider = crawl_provider
         self.ai_provider = ai_provider
         self.insight_repository = insight_repository
-        self.insights_history_repository = insights_history_repository
 
-    async def run(self, query: str) -> Dict:
-        # Generate a unique ID for this pipeline run
-        id = str(uuid.uuid4())
-        # Record the start time of the pipeline run
-        start_time = datetime.now(timezone.utc)
-
+    async def run(self, query: str, user_id: Optional[str] = None) -> Dict:
+        """
+        Executes the full pipeline: search → crawl → AI analysis → store in DB.
+        Returns the final insight result or an error message if any step fails.
+        """
         try:
             urls = await self.search_provider.search(query)
 
@@ -86,6 +80,7 @@ class PipelineService:
 
             result = {
                 "query": query,
+                "user_id": user_id,
                 "documents_collected": len(documents),
                 "insights": insights,
                 "sources": [d["url"] for d in documents],
@@ -93,75 +88,11 @@ class PipelineService:
 
             await self.insight_repository.save(result)
 
-            # Create an insight topic record
-            insight_topic = {
-                "id": str(uuid.uuid4()),
-                "topic": query,
-                "created_at": datetime.now(timezone.utc).strftime("%Y, %-m, %-d"),
-            }
-
-            topic_id = await self.insight_repository.create_insight_topic(insight_topic)
-            latest_version = None
-
-            try:
-                latest_version = await self.insight_repository.get_latest_version(
-                    topic_id["id"]
-                )
-            except Exception as e:
-                print(f"Error retrieving latest version: {e}")
-                pass
-
-            version_number = 1
-            if latest_version:
-                version_number = latest_version.get("version", 0) + 1
-
-            version_record = {
-                "id": str(uuid.uuid4()),
-                "topic_id": topic_id["id"],
-                "version": version_number,
-                "summary": insights.get("summary", ""),
-                "confidence": insights.get("confidence", 0.0),
-                "sources": [d["url"] for d in documents],
-                "created_at": datetime.now(timezone.utc).strftime("%Y, %-m, %-d"),
-            }
-
-            await self.insight_repository.add_version(version_record)
-
-            # Record pipeline run history
-            duration = datetime.now(timezone.utc) - start_time
-            insights_history = {
-                "id": id,
-                "query": query,
-                "summary": insights.get("summary", ""),
-                "confidence_score": insights.get("confidence", {}).get("score", 0.0),
-                "timestamp": datetime.now(timezone.utc).strftime(
-                    "%Y, %-m, %-d"
-                ),  # Store only the date in the format "YYYY, M, D"
-                "duration_seconds": round(
-                    duration.total_seconds(), 2
-                ),  # Store duration in seconds as a float
-                "error": None,
-            }
-
-            await self.insights_history_repository.save_history(insights_history)
-
             return result
 
         except Exception as e:
-            duration = (
-                datetime.now(timezone.utc) - start_time
-            )  # Calculate duration even on error
-            insights_history = {
-                "id": id,
-                "query": query,
-                "summary": None,
-                "confidence_score": None,
-                "timestamp": datetime.now(timezone.utc).strftime("%Y, %-m, %-d"),
-                "duration_seconds": round(duration.total_seconds(), 2),
-                "error": str(e),
-            }
-
-            await self.insights_history_repository.save_history(insights_history)
+            logger.error(f"Pipeline run failed: {str(e)}", exc_info=True)
+            return {"error": str(e)}
 
     async def close(self):
         if hasattr(self.crawl_provider, "close"):

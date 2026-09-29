@@ -1,4 +1,3 @@
-# app/api/schemas/__init__.py
 from .admin import (
     RunPipelineRequest,
     PipelineRunResponse,
@@ -12,17 +11,15 @@ from .admin import (
     DowngradePlanResponse,
     AdminErrorResponse,
 )
-from .auth import RegisterRequest, loginRequest, AuthResponse, UserPublic
-from .insights import InsightResponse
-from .insights_history import InsightsHistory, InsightsHistoryItem
-from .insight_topic import (
-    InsightTopicResponse,
-    TopicVersion,
-    TopicItem,
-    ConfidenceMetrics,
+from .auth import RegisterRequest, LoginRequest, AuthResponse, UserPublic
+from .api_keys import ApiKeyCreateRequest, ApiKeyCreateResponse, ApiKeyResponse
+from .insights import InsightResponse, OnDemandInsightRequest, OnDemandInsightResponse
+from .scheduled_queries import (
+    ScheduledQueryCreateRequest,
+    ScheduledQueryResponse,
+    ScheduledQueryToggleRequest,
 )
 from .pipeline import PipelineRunRequest
-from .scheduler_status import SchedulerStatusResponse
 
 __all__ = [
     # Admin Schemas
@@ -39,21 +36,21 @@ __all__ = [
     "AdminErrorResponse",
     # Auth Schemas
     "RegisterRequest",
-    "loginRequest",
+    "LoginRequest",
     "AuthResponse",
     "UserPublic",
     # Insight Schemas
     "InsightResponse",
-    # Insight Topic Schemas
-    "InsightTopicResponse",
-    "TopicVersion",
-    "TopicItem",
-    "ConfidenceMetrics",
-    # Insights History Schemas
-    "InsightsHistory",
-    "InsightsHistoryItem",
+    "OnDemandInsightRequest",
+    "OnDemandInsightResponse",
+    # Scheduled Query Schemas
+    "ScheduledQueryCreateRequest",
+    "ScheduledQueryResponse",
+    "ScheduledQueryToggleRequest",
     # Pipeline Schemas
     "PipelineRunRequest",
-    # Scheduler Status Schemas
-    "SchedulerStatusResponse",
+    # API Key Schemas
+    "ApiKeyCreateRequest",
+    "ApiKeyCreateResponse",
+    "ApiKeyResponse",
 ]

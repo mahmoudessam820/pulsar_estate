@@ -1,109 +1,91 @@
-import json
+import uuid
 import logging
-from pathlib import Path
-from typing import Optional
-from dataclasses import asdict
+from typing import Dict, Optional, List
 
-from app.auth.models import User
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
 from app.data.repositories.base import UserRepositoryBase
+from app.data.models.users import User
+
+logger = logging.getLogger(__name__)
 
 
-class JSONUserRepository(UserRepositoryBase):
-    def __init__(self, base_path: str = "storage/auth/users.json"):
-        self.base_path = Path(base_path)
-        self.base_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if not self.base_path.exists():
-            self.base_path.write_text(json.dumps({}))
-
-    def _load(self):
-        return json.loads(self.base_path.read_text())
-
-    def _save(self, data):
-        self.base_path.write_text(json.dumps(data, indent=2))
+class PostgresUserRepository(UserRepositoryBase):
+    def __init__(self, db: AsyncSession):
+        self.db = db
 
     async def create(self, user: User) -> None:
-        data = self._load()
+        try:
+            self.db.add(user)
+            await self.db.commit()
+            await self.db.refresh(user)
+            logger.info(f"Successfully created user {user.id} with email {user.email}")
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Failed to create user {user.email}: {str(e)}", exc_info=True)
+            raise
 
-        data[user.id] = asdict(user)
-
-        self._save(data)
-
-    async def list_users(self) -> list[User]:
-        data = self._load()
-        return list(data.values())
+    async def list_users(self) -> List[User]:
+        try:
+            result = await self.db.execute(
+                select(User).order_by(User.created_at.desc())
+            )
+            return result.scalars().all()
+        except Exception as e:
+            logger.error(f"Failed to list users: {str(e)}", exc_info=True)
+            raise
 
     async def update_user(self, user_id: str, user_data: dict) -> None:
-        data = self._load()
+        try:
+            stmt = select(User).where(User.id == uuid.UUID(user_id))
+            result = await self.db.execute(stmt)
+            user = result.scalar_one_or_none()
 
-        if user_id not in data:
-            return
+            if not user:
+                logger.warning(f"Attempted to update non-existent user: {user_id}")
+                return
 
-        user = data[user_id]
+            for key, value in user_data.items():
+                if hasattr(user, key):
+                    setattr(user, key, value)
 
-        user["email"] = user_data.get("email", user["email"])
-        user["password_hash"] = user_data.get("password_hash", user["password_hash"])
-        user["role"] = user_data.get("role", user["role"])
-        user["plan"] = user_data.get("plan", user["plan"])
-        user["is_active"] = user_data.get("is_active", user["is_active"])
-        user["subscription_id"] = user_data.get(
-            "subscription_id", user["subscription_id"]
-        )
-
-        if user_data.get("subscription_id") == None:
-            user["subscription_id"] = None
-            user["current_period_end"] = None
-
-        user["subscription_status"] = user_data.get(
-            "subscription_status", user["subscription_status"]
-        )
-        user["current_period_end"] = user_data.get(
-            "current_period_end", user["current_period_end"]
-        )
-        user["updated_at"] = user_data.get("updated_at", user.get("updated_at"))
-
-        self._save(data)
+            await self.db.commit()
+            await self.db.refresh(user)
+            logger.info(f"Successfully updated user {user_id}")
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Failed to update user {user_id}: {str(e)}", exc_info=True)
+            raise
 
     async def update_role(self, user_id: str, role: str) -> None:
-        data = self._load()
-
-        for uid, user in data.items():
-            if uid == user_id:
-                user["role"] = role
-                break
-
-        self._save(data)
+        await self.update_user(user_id, {"role": role})
 
     async def update_plan(self, user_id: str, plan: str) -> None:
-        data = self._load()
-
-        for uid, user in data.items():
-            if uid == user_id:
-                user["plan"] = plan
-                break
-
-        self._save(data)
+        await self.update_user(user_id, {"plan": plan})
 
     async def get_by_email(self, email: str) -> Optional[User]:
-        data = self._load()
-
-        for user_data in data.values():
-            if user_data["email"] == email:
-                return User(**user_data)
-
-        return None
+        try:
+            result = await self.db.execute(select(User).where(User.email == email))
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(
+                f"Failed to get user by email {email}: {str(e)}", exc_info=True
+            )
+            raise
 
     async def get_by_id(self, user_id: str) -> Optional[User]:
-        data = self._load()
-
-        user_data = data.get(user_id)
-        if not user_data:
+        try:
+            result = await self.db.execute(
+                select(User).where(User.id == uuid.UUID(user_id))
+            )
+            return result.scalar_one_or_none()
+        except ValueError:
+            logger.warning(f"Invalid UUID format for user_id: {user_id}")
             return None
+        except Exception as e:
+            logger.error(f"Failed to get user by id {user_id}: {str(e)}", exc_info=True)
+            raise
 
-        return User(**user_data)
-
-    async def update_subscription(self, user_id: str, subscription_data: dict) -> None:
-        logging.info(
-            f"Updating subscription for user_id={user_id} with data={subscription_data}"
-        )
+    async def update_subscription(self, user_id: str, subscription_data: Dict) -> None:
         await self.update_user(user_id, subscription_data)
