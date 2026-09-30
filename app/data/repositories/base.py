@@ -18,18 +18,18 @@ class InsightRepositoryBase(ABC):
     """
 
     @abstractmethod
-    async def save(self, data: Dict[str, str], user_id: Optional[str] = None) -> Dict:
-        """Save insight data to the repository."""
+    async def save(self, data: Dict[str, str]) -> Insight:
+        """Save insight data to the repository and return the created Insight."""
         raise NotImplementedError
 
     @abstractmethod
     async def load_latest(self) -> Optional[Insight]:
-        """Load the latest insight data from the repository."""
+        """Load the absolute latest insight data from the repository (System-wide)."""
         raise NotImplementedError
 
     @abstractmethod
     async def load_latest_for_user(self, user_id: uuid.UUID) -> Optional[Insight]:
-        """Load the latest insight data for a specific user from the repository."""
+        """Load the latest insight data for a specific user."""
         raise NotImplementedError
 
 
