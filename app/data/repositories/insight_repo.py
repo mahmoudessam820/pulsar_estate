@@ -16,18 +16,20 @@ class PostgresInsightRepository(InsightRepositoryBase):
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def save(self, data: Dict[str, Any]) -> Dict:
+    async def save(self, data: Dict[str, Any]) -> Insight:
         """
-        Saves insight data to PostgreSQL.
+        Saves insight data to Insight table.
         Extracts key fields for relational querying, and stores the full AI output in JSONB.
+        Returns the created Insight object.
         """
+
         # Check if the AI provider returned an error instead of valid data
         if "error" in data and data.get("raw") is None:
             logger.error(
                 "Skipping database save: AI analysis failed with error: %s",
                 data.get("error"),
             )
-            return
+            raise ValueError("AI analysis failed, no data to save")
 
         # Extract the nested 'insights' object first
         insights_obj = data.get("insights", {})
@@ -39,7 +41,7 @@ class PostgresInsightRepository(InsightRepositoryBase):
                 "Skipping database save: Missing required 'summary' field in 'insights' object. "
                 "AI analysis likely failed, timed out, or returned empty data."
             )
-            return
+            raise ValueError("Missing required 'summary' field in AI output")
 
         try:
             # Extract confidence from the nested 'insights' object
@@ -58,7 +60,7 @@ class PostgresInsightRepository(InsightRepositoryBase):
                 confidence_score=confidence_obj.get("score"),
                 confidence_label=confidence_obj.get("label"),
                 confidence_explanation=insights_obj.get("confidence_explanation"),
-                raw_ai_output=insights_obj,  # Store the whole nested object for API reconstruction
+                raw_ai_output=insights_obj,
                 sources=data.get("sources", []),
             )
 
@@ -66,9 +68,14 @@ class PostgresInsightRepository(InsightRepositoryBase):
             self.db.add(new_insight)
             await self.db.commit()
             await self.db.refresh(new_insight)
+            
             logger.info(
                 f"Successfully saved insight with ID: {new_insight.id} for query: {new_insight.query}"
             )
+            
+            # Return the created insight
+            return new_insight
+            
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Failed to save insight to database: {str(e)}", exc_info=True)

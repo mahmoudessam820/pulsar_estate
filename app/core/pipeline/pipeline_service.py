@@ -86,7 +86,11 @@ class PipelineService:
                 "sources": [d["url"] for d in documents],
             }
 
-            await self.insight_repository.save(result)
+            # Capture the returned Insight object
+            saved_insight = await self.insight_repository.save(result)
+            
+            # Add the database ID to the result
+            result["insight_id"] = str(saved_insight.id)
 
             return result
 

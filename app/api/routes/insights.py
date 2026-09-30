@@ -70,7 +70,6 @@ async def generate_on_demand_insight(
     current_user: User = Depends(get_authenticated_user),
     entitlement_service: EntitlementService = Depends(get_entitlement_service),
     usage_service: UsageService = Depends(get_usage_service),
-    insight_repo: InsightRepositoryBase = Depends(get_insight_repository),
     pipeline_run_repo: PipelineRunRepositoryBase = Depends(get_pipeline_run_repository),
 ):
     # 1. Check Quota
@@ -104,14 +103,16 @@ async def generate_on_demand_insight(
         )
         pipeline = build_pipeline(db=db)
 
-        # Note: pipeline.run() internally calls insight_repo.save()
-        await pipeline.run(request.query, user_id=str(current_user.id))
+        # Note: pipeline.run() returns the insight_id directly
+        pipeline_result = await pipeline.run(request.query, user_id=str(current_user.id))
+
+        if "error" in pipeline_result:
+            raise RuntimeError(pipeline_result["error"])
+
+        insight_id_str = pipeline_result.get("insight_id")
 
         # 5. Update Audit Record on Success
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        latest_insight = await insight_repo.load_latest()
-        insight_id_str = str(latest_insight.id) if latest_insight else None
-
         await pipeline_run_repo.update_run_status(
             run_id=str(pipeline_run.id),
             insight_id=insight_id_str,
@@ -156,5 +157,5 @@ async def generate_on_demand_insight(
         # 8. Ensure pipeline resources are cleaned up AND global lock is ALWAYS released
         if pipeline and hasattr(pipeline, "close"):
             await pipeline.close()
-
+        
         await release_lock(GLOBAL_PIPELINE_LOCK_KEY)
