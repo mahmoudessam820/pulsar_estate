@@ -1,8 +1,13 @@
+import logging
+
 from app.monetization.limits import PLAN_LIMITS
 from app.monetization.plans import Plan
 from app.monetization.usage import UsageService
 from app.data.repositories.base import ScheduledQueryRepositoryBase
 from app.data.models.users import User
+
+
+logger = logging.getLogger(__name__)
 
 
 class EntitlementService:
@@ -17,6 +22,10 @@ class EntitlementService:
     async def check_pipeline_access(self, user: User) -> bool:
         plan = Plan(user.plan)
         limit = PLAN_LIMITS[plan]["daily_runs"]
+
+        logger.info(
+            f"Checking pipeline access for user {user.id} with plan {plan.value}. Limit: {limit}"
+        )
 
         return await self.usage_service.can_run(user.id, limit)
 

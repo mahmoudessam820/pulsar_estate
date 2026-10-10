@@ -43,6 +43,7 @@ fastapi-cloud-cli==0.8.0
 fastar==0.8.0
 fastuuid==0.14.0
 filelock==3.20.2
+flower==2.2.0
 frozenlist==1.8.0
 fsspec==2025.12.0
 greenlet==3.3.0
@@ -91,6 +92,7 @@ pillow==12.1.0
 playwright==1.57.0
 pluggy==1.6.0
 primp==0.15.0
+prometheus_client==0.26.0
 prompt_toolkit==3.0.52
 propcache==0.4.1
 psutil==7.2.1
@@ -111,6 +113,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-jose==3.5.0
 python-multipart==0.0.21
+pytz==2026.4
 PyYAML==6.0.3
 rank-bm25==0.2.2
 redis==7.3.0
@@ -138,6 +141,7 @@ starlette==0.50.0
 tf-playwright-stealth==1.2.0
 tiktoken==0.12.0
 tokenizers==0.22.1
+tornado==6.5.10
 tqdm==4.67.1
 trimesh==4.10.1
 typer==0.21.0

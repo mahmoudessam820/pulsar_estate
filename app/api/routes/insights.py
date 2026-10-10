@@ -1,28 +1,23 @@
 import logging
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.pipeline.factory import build_pipeline
+from app.core.pipeline.tasks import execute_pipeline_task
 from app.data.repositories.base import InsightRepositoryBase, PipelineRunRepositoryBase
 from app.api.deps import (
     get_insight_repository,
     get_pipeline_run_repository,
     get_entitlement_service,
-    get_usage_service,
 )
 from app.auth.dependencies import get_authenticated_user  # UNIFIED DEPENDENCY
 from app.api.schemas.insights import (
     InsightResponse,
     OnDemandInsightRequest,
-    OnDemandInsightResponse,
 )
 from app.data.models.users import User
-from app.monetization.usage import UsageService
 from app.monetization.entitlements import EntitlementService
-from app.utils.redis_lock import acquire_lock, release_lock, GLOBAL_PIPELINE_LOCK_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -59,103 +54,84 @@ async def get_latest_insight(
 
 @router.post(
     "/on-demand",
-    response_model=OnDemandInsightResponse,
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Generate an on-demand insight",
-    description="Triggers a custom query pipeline. Subject to daily quota limits. Note: This runs synchronously",
+    description="Dispatches a custom query pipeline to the background. Subject to daily quota limits.",
 )
 async def generate_on_demand_insight(
     request: OnDemandInsightRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_authenticated_user),
     entitlement_service: EntitlementService = Depends(get_entitlement_service),
-    usage_service: UsageService = Depends(get_usage_service),
     pipeline_run_repo: PipelineRunRepositoryBase = Depends(get_pipeline_run_repository),
 ):
     # 1. Check Quota
     can_run = await entitlement_service.check_pipeline_access(current_user)
     if not can_run:
-        logger.warning(f"Quota exceeded for user {current_user.id} on on-demand run")
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Daily on-demand query limit exceeded. Please upgrade your plan.",
         )
 
-    # 2. Attempt to acquire the GLOBAL pipeline lock (Fail Fast)
-    if not await acquire_lock(GLOBAL_PIPELINE_LOCK_KEY, ttl=600):
-        logger.warning(
-            f"Global pipeline lock held. Rejecting on-demand request for user {current_user.id}."
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The system is currently processing another intensive query. Please try again in a moment.",
-        )
-
-    # 3. Create Pipeline Run Audit Record
+    # 2. Create Pipeline Run Audit Record (Status: pending)
     pipeline_run = await pipeline_run_repo.create_run(user_id=str(current_user.id))
-    start_time = datetime.now(timezone.utc)
-    pipeline = None
 
-    try:
-        # 4. Build and Execute Pipeline
-        logger.info(
-            f"Starting on-demand pipeline for user {current_user.id}: {request.query}"
-        )
-        pipeline = build_pipeline(db=db)
+    # 3. Dispatch to Celery
+    logger.info(
+        f"Dispatching on-demand pipeline task {pipeline_run.id} for user {current_user.id}"
+    )
+    execute_pipeline_task.delay(
+        query=request.query,
+        user_id=str(current_user.id),
+        pipeline_run_id=str(pipeline_run.id),
+    )
 
-        # Note: pipeline.run() returns the insight_id directly
-        pipeline_result = await pipeline.run(request.query, user_id=str(current_user.id))
+    # 4. Return immediately
+    return {
+        "task_id": str(pipeline_run.id),
+        "status": "pending",
+        "message": "Pipeline execution started. Poll the /tasks/{task_id} endpoint for status.",
+    }
 
-        if "error" in pipeline_result:
-            raise RuntimeError(pipeline_result["error"])
 
-        insight_id_str = pipeline_result.get("insight_id")
+@router.get(
+    "/tasks/{task_id}",
+    summary="Check pipeline task status",
+    description="Poll this endpoint to check if the on-demand pipeline has completed.",
+)
+async def get_task_status(
+    task_id: str,
+    current_user: User = Depends(get_authenticated_user),
+    pipeline_run_repo: PipelineRunRepositoryBase = Depends(get_pipeline_run_repository),
+):
+    # Fetch the pipeline run record
+    run = await pipeline_run_repo.get_run(task_id)
 
-        # 5. Update Audit Record on Success
-        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        await pipeline_run_repo.update_run_status(
-            run_id=str(pipeline_run.id),
-            insight_id=insight_id_str,
-            status="success",
-            duration_seconds=duration,
-        )
-
-        # 6. Record Usage for Quota Tracking
-        await usage_service.record_run(
-            str(current_user.id), metric_type="on_demand_run"
-        )
-
-        logger.info(
-            f"Successfully completed on-demand pipeline {pipeline_run.id} in {duration:.2f}s"
-        )
-
-        return OnDemandInsightResponse(
-            pipeline_run_id=pipeline_run.id,
-            status="success",
-            message="Insight generated successfully.",
-            duration_seconds=duration,
-        )
-
-    except Exception as e:
-        # 7. Update Audit Record on Failure
-        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        await pipeline_run_repo.update_run_status(
-            run_id=str(pipeline_run.id),
-            status="failed",
-            error=str(e),
-            duration_seconds=duration,
-        )
-
-        logger.error(
-            f"On-demand pipeline {pipeline_run.id} failed: {str(e)}", exc_info=True
-        )
+    if not run:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Pipeline execution failed. The error has been logged.",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
-    finally:
-        # 8. Ensure pipeline resources are cleaned up AND global lock is ALWAYS released
-        if pipeline and hasattr(pipeline, "close"):
-            await pipeline.close()
-        
-        await release_lock(GLOBAL_PIPELINE_LOCK_KEY)
+
+    # check ensure the user owns this task (or is admin)
+    if str(run.user_id) != str(current_user.id) and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view this task",
+        )
+
+    response = {
+        "task_id": str(run.id),
+        "status": run.status,
+        "duration_seconds": run.duration_seconds,
+    }
+
+    if run.status == "success":
+        response["insight_id"] = str(run.insight_id) if run.insight_id else None
+        response["message"] = "Insight generated successfully."
+    elif run.status == "failed":
+        response["error"] = run.error
+        response["message"] = "Pipeline execution failed."
+    else:
+        response["message"] = "Pipeline is currently running or queued."
+
+    return response

@@ -8,6 +8,7 @@ from app.data.repositories.scheduled_query_repo import PostgresScheduledQueryRep
 from app.scheduler.apscheduler_impl import APSchedulerService
 from app.config.settings import settings
 from app.utils.logging import setup_logging
+from app.core.celery_app import celery_app
 from app.api.routes import (
     health,
     insights,

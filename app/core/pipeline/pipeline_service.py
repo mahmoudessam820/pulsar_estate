@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import List, Dict, Optional
 
 from app.core.pipeline.interfaces import (
@@ -84,11 +85,12 @@ class PipelineService:
                 "documents_collected": len(documents),
                 "insights": insights,
                 "sources": [d["url"] for d in documents],
+                "start_time": datetime.now(timezone.utc),
             }
 
             # Capture the returned Insight object
             saved_insight = await self.insight_repository.save(result)
-            
+
             # Add the database ID to the result
             result["insight_id"] = str(saved_insight.id)
 
