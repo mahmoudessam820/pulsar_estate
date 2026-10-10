@@ -50,6 +50,10 @@ class Settings(BaseSettings):
         default=SecretStr("guest"), description="RabbitMQ password"
     )
 
+    # Redis Components
+    redis_host: str = Field(default="localhost", description="Redis hostname")
+    redis_port: int = Field(default=6379, description="Redis port")
+
     # Computed URLs (Automatically built from components above)
     @computed_field
     @property

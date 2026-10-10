@@ -78,14 +78,12 @@ async def run_pipeline(
         # Check if the pipeline returned an error instead of success
         if "error" in pipeline_result:
             raise RuntimeError(pipeline_result["error"])
-        
+
         insight_id_str = pipeline_result.get("insight_id")
 
         # 4. Update Audit Record on Success
         await pipeline_run_repo.update_run_status(
-            run_id=str(pipeline_run.id),
-            insight_id=insight_id_str,
-            status="success"
+            run_id=str(pipeline_run.id), insight_id=insight_id_str, status="success"
         )
 
         logger.info(
@@ -100,9 +98,7 @@ async def run_pipeline(
     except Exception as e:
         # 5. Update Audit Record on Failure
         await pipeline_run_repo.update_run_status(
-            run_id=str(pipeline_run.id), 
-            status="failed", 
-            error=str(e)
+            run_id=str(pipeline_run.id), status="failed", error=str(e)
         )
         logger.error(
             f"Admin {admin_user.id} pipeline execution failed: {e}", exc_info=True

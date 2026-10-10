@@ -68,14 +68,14 @@ class PostgresInsightRepository(InsightRepositoryBase):
             self.db.add(new_insight)
             await self.db.commit()
             await self.db.refresh(new_insight)
-            
+
             logger.info(
                 f"Successfully saved insight with ID: {new_insight.id} for query: {new_insight.query}"
             )
-            
+
             # Return the created insight
             return new_insight
-            
+
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Failed to save insight to database: {str(e)}", exc_info=True)
