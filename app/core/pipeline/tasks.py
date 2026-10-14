@@ -9,6 +9,7 @@ from app.core.pipeline.factory import build_pipeline
 from app.data.repositories.pipeline_run_repo import PostgresPipelineRunRepository
 from app.data.repositories.usage_tracking_repo import PostgresUsageRepository
 from app.data.repositories.user_repo import PostgresUserRepository
+from app.events.publisher import publish_task_update
 from app.monetization.limits import PLAN_LIMITS
 from app.monetization.plans import Plan
 from app.utils.redis_lock import (
@@ -80,6 +81,15 @@ async def _run_async(query: str, user_id: str, pipeline_run_id: str):
                     status="failed",
                     error="Daily quota exceeded at execution time.",
                 )
+
+                # trigger notification for quota exceeded
+                publish_task_update(
+                    user_id=user_id,
+                    task_id=pipeline_run_id,
+                    status="failed",
+                    error="Daily quota exceeded.",
+                )
+
                 return  # Exit early
 
             # Proceed with Pipeline Execution
@@ -105,6 +115,14 @@ async def _run_async(query: str, user_id: str, pipeline_run_id: str):
             await usage_repo.increment(str(user_id), metric_type="on_demand_run")
             logger.info(f"Successfully completed async pipeline {pipeline_run_id}")
 
+            # trigger notification for success
+            publish_task_update(
+                user_id=user_id,
+                task_id=pipeline_run_id,
+                status="success",
+                insight_id=insight_id_str,
+            )
+
         except Exception as e:
             await pipeline_run_repo.update_run_status(
                 run_id=pipeline_run_id,
@@ -114,6 +132,15 @@ async def _run_async(query: str, user_id: str, pipeline_run_id: str):
             logger.error(
                 f"Async pipeline {pipeline_run_id} failed: {str(e)}", exc_info=True
             )
+
+            # trigger notification for failure
+            publish_task_update(
+                user_id=user_id,
+                task_id=pipeline_run_id,
+                status="failed",
+                error="Pipeline execution failed. Please try again.",
+            )
+
             raise
 
         finally:

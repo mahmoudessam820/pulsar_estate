@@ -8,7 +8,9 @@ from app.data.repositories.scheduled_query_repo import PostgresScheduledQueryRep
 from app.scheduler.apscheduler_impl import APSchedulerService
 from app.config.settings import settings
 from app.utils.logging import setup_logging
-from app.core.celery_app import celery_app
+from app.core.celery_app import (
+    celery_app,
+)  # Import the Celery app to ensure it's initialized
 from app.api.routes import (
     health,
     insights,
@@ -18,6 +20,7 @@ from app.api.routes import (
     integrations,
     pipeline,
     billing,
+    events,
 )
 
 
@@ -74,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(integrations.router)
     app.include_router(pipeline.router)
     app.include_router(billing.router)
+    app.include_router(events.router)
 
     return app
 

@@ -20,6 +20,7 @@ from .scheduled_queries import (
     ScheduledQueryToggleRequest,
 )
 from .pipeline import PipelineRunRequest
+from .events import TaskCompletionEvent
 
 __all__ = [
     # Admin Schemas
@@ -53,4 +54,6 @@ __all__ = [
     "ApiKeyCreateRequest",
     "ApiKeyCreateResponse",
     "ApiKeyResponse",
+    # Event Schemas
+    "TaskCompletionEvent",
 ]
