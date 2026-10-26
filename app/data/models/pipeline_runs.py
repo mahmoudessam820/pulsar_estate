@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from uuid_utils import uuid7
-from sqlalchemy import String, Text, Float, DateTime, ForeignKey, func
+from sqlalchemy import String, Text, Float, DateTime, ForeignKey, func, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,6 +43,11 @@ class PipelineRun(Base):
 
     # Performance Metrics
     duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Caching Flag
+    is_cached: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     # Timestamps
     started_at: Mapped[datetime] = mapped_column(

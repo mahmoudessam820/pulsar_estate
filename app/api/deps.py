@@ -3,6 +3,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.providers.embedding.base import EmbeddingProviderBase
 from app.core.scheduler.scheduled_query_service import ScheduledQueryService
 from app.data.repositories.base import (
     InsightRepositoryBase,
@@ -24,6 +25,8 @@ from app.auth.api_key_service import ApiKeyService
 
 from app.monetization.usage import UsageService
 from app.monetization.entitlements import EntitlementService
+
+from app.core.pipeline.factory import get_embedding_provider as _get_embedding_provider
 
 
 def get_insight_repository(db: AsyncSession = Depends(get_db)) -> InsightRepositoryBase:
@@ -81,3 +84,7 @@ def get_scheduled_query_repository(
 
 def get_api_key_repository(db: AsyncSession = Depends(get_db)) -> ApiKeyRepositoryBase:
     return PostgresApiKeyRepository(db)
+
+
+def get_embedding_provider() -> EmbeddingProviderBase:
+    return _get_embedding_provider()

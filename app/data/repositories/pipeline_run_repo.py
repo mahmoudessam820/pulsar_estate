@@ -45,6 +45,7 @@ class PostgresPipelineRunRepository(PipelineRunRepositoryBase):
         insight_id: Optional[str] = None,
         error: Optional[str] = None,
         duration_seconds: Optional[float] = None,
+        is_cached: bool = False,
     ) -> None:
         """Update run status, optionally with insight_id, error, or duration."""
         try:
@@ -65,6 +66,8 @@ class PostgresPipelineRunRepository(PipelineRunRepositoryBase):
                 run.error = error
             if duration_seconds is not None:
                 run.duration_seconds = duration_seconds
+            if is_cached:
+                run.is_cached = is_cached
 
             # Set completed_at if status is terminal
             if status in ["success", "failed"]:

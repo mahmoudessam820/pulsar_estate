@@ -5,8 +5,10 @@ from uuid_utils import uuid7
 from sqlalchemy import String, Integer, DateTime, Text, func, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
 
 from app.core.database import Base
+from app.config.settings import settings
 
 
 class Insight(Base):
@@ -39,6 +41,14 @@ class Insight(Base):
     # raw_ai_output stores the entire nested "insights" object from the AI response
     raw_ai_output: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     sources: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # Embedding vector for semantic search and similarity comparisons
+    query_embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(settings.embedding_dimension), nullable=True
+    )
+    cache_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

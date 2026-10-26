@@ -32,6 +32,32 @@ class InsightRepositoryBase(ABC):
         """Load the latest insight data for a specific user."""
         raise NotImplementedError
 
+    @abstractmethod
+    async def find_cached_insight(
+        self,
+        user_id: uuid.UUID,
+        query_embedding: List[float],
+        max_distance: float = 0.05,
+    ) -> Optional[Insight]:
+        """Find a cached insight for the user within the similarity threshold."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def find_exact_cached_insight(
+        self,
+        user_id: uuid.UUID,
+        query: str,
+    ) -> Optional[Insight]:
+        """Find a cached insight by exact query match when embedding is unavailable."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_cache_metadata(
+        self, insight_id: str, query_embedding: List[float], cache_expires_at: datetime
+    ) -> None:
+        """Update an insight with its embedding and expiration time."""
+        raise NotImplementedError
+
 
 class UserRepositoryBase(ABC):
     """
@@ -115,6 +141,7 @@ class PipelineRunRepositoryBase(ABC):
         insight_id: Optional[str] = None,
         error: Optional[str] = None,
         duration_seconds: Optional[float] = None,
+        is_cached: bool = False,
     ) -> None:
         """Update run status, optionally with insight_id, error, or duration."""
         raise NotImplementedError

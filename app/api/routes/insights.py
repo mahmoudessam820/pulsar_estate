@@ -1,15 +1,15 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.core.pipeline.tasks import execute_pipeline_task
 from app.data.repositories.base import InsightRepositoryBase, PipelineRunRepositoryBase
+from app.providers.embedding.base import EmbeddingProviderBase
 from app.api.deps import (
     get_insight_repository,
     get_pipeline_run_repository,
     get_entitlement_service,
+    get_embedding_provider,
 )
 from app.auth.dependencies import get_authenticated_user  # UNIFIED DEPENDENCY
 from app.api.schemas.insights import (
@@ -60,10 +60,11 @@ async def get_latest_insight(
 )
 async def generate_on_demand_insight(
     request: OnDemandInsightRequest,
-    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_authenticated_user),
     entitlement_service: EntitlementService = Depends(get_entitlement_service),
     pipeline_run_repo: PipelineRunRepositoryBase = Depends(get_pipeline_run_repository),
+    insight_repo: InsightRepositoryBase = Depends(get_insight_repository),
+    embedding_provider: EmbeddingProviderBase = Depends(get_embedding_provider),
 ):
     # 1. Check Quota
     can_run = await entitlement_service.check_pipeline_access(current_user)
@@ -73,23 +74,75 @@ async def generate_on_demand_insight(
             detail="Daily on-demand query limit exceeded. Please upgrade your plan.",
         )
 
-    # 2. Create Pipeline Run Audit Record (Status: pending)
+    # 2. Generate embedding and check semantic cache
+    query_embedding = None
+    cached_insight = None
+
+    try:
+        logger.info(f"Generating embedding query: {request.query}")
+        query_embedding = await embedding_provider.generate_embedding(request.query)
+
+        cached_insight = await insight_repo.find_cached_insight(
+            user_id=current_user.id,
+            query_embedding=query_embedding,
+            max_distance=0.05,
+        )
+    except Exception as e:
+        logger.warning(
+            f"Embedding/semantic cache failed: {str(e)}. Trying exact-match fallback."
+        )
+
+        # Fallback: exact query match
+        try:
+            logger.info(f"Attempting exact-match fallback for query: {request.query}")
+            cached_insight = await insight_repo.find_exact_cached_insight(
+                user_id=current_user.id,
+                query=request.query,
+            )
+        except Exception as fallback_error:
+            logger.error(f"Exact-match fallback also failed: {str(fallback_error)}")
+
+    # 3. Cache hit: return immediately, no Celery
+    if cached_insight:
+        logger.info(f"Cache HIT for user {current_user.id}. Returning cached insight.")
+
+        pipeline_run = await pipeline_run_repo.create_run(user_id=str(current_user.id))
+
+        await pipeline_run_repo.update_run_status(
+            run_id=str(pipeline_run.id),
+            insight_id=str(cached_insight.id),
+            status="success",
+            duration_seconds=0.15,
+            is_cached=True,
+        )
+
+        await entitlement_service.record_pipeline_run(current_user)
+
+        return {
+            "task_id": str(pipeline_run.id),
+            "status": "success",
+            "insight_id": str(cached_insight.id),
+            "is_cached": True,
+            "message": "Insight retrieved from semantic cache.",
+            "duration_seconds": 0.15,
+        }
+
+    # 4. Cache miss: dispatch to Celery
+    logger.info(f"Cache MISS for user {current_user.id}. Dispatching to Celery.")
     pipeline_run = await pipeline_run_repo.create_run(user_id=str(current_user.id))
 
-    # 3. Dispatch to Celery
-    logger.info(
-        f"Dispatching on-demand pipeline task {pipeline_run.id} for user {current_user.id}"
-    )
     execute_pipeline_task.delay(
         query=request.query,
         user_id=str(current_user.id),
         pipeline_run_id=str(pipeline_run.id),
+        query_embedding=query_embedding,  # Pass embedding if available, None otherwise
     )
 
-    # 4. Return immediately
+
     return {
         "task_id": str(pipeline_run.id),
         "status": "pending",
+        "is_cached": False,
         "message": "Pipeline execution started. Poll the /tasks/{task_id} endpoint for status.",
     }
 
