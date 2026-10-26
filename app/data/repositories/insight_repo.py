@@ -1,8 +1,9 @@
 import uuid
 import logging
-from typing import Dict, Any, Optional
+from datetime import datetime
+from typing import Dict, Any, Optional, List
 
-from sqlalchemy import select
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.data.models.insights import Insight
@@ -115,6 +116,92 @@ class PostgresInsightRepository(InsightRepositoryBase):
         except Exception as e:
             logger.error(
                 f"Failed to load latest insight for user {user_id}: {str(e)}",
+                exc_info=True,
+            )
+            raise
+
+    async def find_cached_insight(
+        self,
+        user_id: uuid.UUID,
+        query_embedding: List[float],
+        max_distance: float = 0.05,
+    ) -> Optional[Insight]:
+        """Find a cached insight for the user within the similarity threshold."""
+        try:
+            # Cosine distance <=> in pgvector.
+            # Distance <= 0.05 means Similarity >= 0.95
+            stmt = (
+                select(Insight)
+                .where(
+                    Insight.user_id == user_id,
+                    Insight.cache_expires_at > func.now(),
+                    Insight.query_embedding.isnot(None),
+                    # Filter directly in the database
+                    Insight.query_embedding.cosine_distance(query_embedding)
+                    <= max_distance,
+                )
+                .order_by(Insight.query_embedding.cosine_distance(query_embedding))
+                .limit(1)
+            )
+
+            result = await self.db.execute(stmt)
+            cached_insight = result.scalar_one_or_none()
+
+            if cached_insight:
+                logger.info(f"Cache HIT for user {user_id}")
+                return cached_insight
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to find cached insight: {str(e)}", exc_info=True)
+            return None
+
+    async def find_exact_cached_insight(
+        self,
+        user_id: uuid.UUID,
+        query: str,
+    ) -> Optional[Insight]:
+        """Fallback cache check: exact query match with valid embedding and expiration."""
+        try:
+            stmt = (
+                select(Insight)
+                .where(
+                    Insight.user_id == user_id,
+                    Insight.query == query,
+                    Insight.query_embedding.isnot(None),
+                    Insight.cache_expires_at > func.now(),
+                )
+                .order_by(Insight.created_at.desc())
+                .limit(1)
+            )
+            result = await self.db.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(
+                f"Failed to find exact cached insight: {str(e)}", exc_info=True
+            )
+            return None
+
+    async def update_cache_metadata(
+        self, insight_id: str, query_embedding: List[float], cache_expires_at: datetime
+    ) -> None:
+        """Updates the embedding and expiration time for a successfully generated insight."""
+        try:
+            stmt = (
+                update(Insight)
+                .where(Insight.id == uuid.UUID(insight_id))
+                .values(
+                    query_embedding=query_embedding, cache_expires_at=cache_expires_at
+                )
+            )
+            await self.db.execute(stmt)
+            await self.db.commit()
+            logger.info(f"Successfully updated cache metadata for insight {insight_id}")
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(
+                f"Failed to update cache metadata for insight {insight_id}: {str(e)}",
                 exc_info=True,
             )
             raise

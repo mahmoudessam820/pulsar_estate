@@ -11,7 +11,13 @@ EOF
 
 AGENTS.md
 
+
 generate_fk_migration.py
+generate_semantic_cache_migration.py
+generate_caching_flag_migration.py
+test_hf_embedding.py
+test_nvidia_embedding.py
+test_query_embedding.py
 
 http/
 storage/

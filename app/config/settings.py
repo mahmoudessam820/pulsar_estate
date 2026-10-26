@@ -27,6 +27,15 @@ class Settings(BaseSettings):
         description="Critical: Must be a strong secret in production",
     )
 
+    # Embbedding Keys
+    hf_api_key: SecretStr = Field(
+        default=SecretStr(""), description="HuggingFace API key for embeddings"
+    )
+
+    nvidia_api_key: SecretStr = Field(
+        default=SecretStr(""), description="NVIDIA API key for embeddings"
+    )
+
     # Scheduler
     scheduler_timezone: str = "UTC"
 
@@ -53,6 +62,15 @@ class Settings(BaseSettings):
     # Redis Components
     redis_host: str = Field(default="localhost", description="Redis hostname")
     redis_port: int = Field(default=6379, description="Redis port")
+
+    # Embedding Provider Settings
+    embedding_provider: str = Field(
+        default="nvidia",
+        description="Embedding provider (e.g., huggingface, nvidia)",
+    )
+    embedding_dimension: int = Field(
+        default=384, description="Dimension of the embedding vectors"
+    )  # 384 for HF MiniLM, 1024 for NVIDIA E5
 
     # Computed URLs (Automatically built from components above)
     @computed_field
