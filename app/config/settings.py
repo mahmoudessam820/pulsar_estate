@@ -72,6 +72,26 @@ class Settings(BaseSettings):
         default=384, description="Dimension of the embedding vectors"
     )  # 384 for HF MiniLM, 1024 for NVIDIA E5
 
+    # Rate Limiting Settings
+    REDIS_URL: str = Field(
+        default="redis://127.0.0.1:6379/0", description="Redis URL for rate limiting"
+    )
+    TRUSTED_PROXY_IPS: str = Field(
+        default="", description="Comma-separated list of trusted proxy IPs"
+    )
+    RATE_LIMIT_DEFAULT_FALLBACK: str = Field(
+        default="100/minute", description="Default rate limit fallback"
+    )
+    RATE_LIMIT_AUTH: str = Field(
+        default="5/minute", description="Rate limit for authenticated users"
+    )
+    RATE_LIMIT_PIPELINE: str = Field(
+        default="10/minute", description="Rate limit for pipeline requests"
+    )
+    RATE_LIMIT_INTEGRATIONS: str = Field(
+        default="20/minute", description="Rate limit for integration requests"
+    )
+
     # Computed URLs (Automatically built from components above)
     @computed_field
     @property

@@ -1,11 +1,15 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
+from slowapi.errors import RateLimitExceeded
 
 from app.core.database import AsyncSessionLocal
 from app.core.pipeline.factory import build_pipeline
 from app.data.repositories.scheduled_query_repo import PostgresScheduledQueryRepository
 from app.scheduler.apscheduler_impl import APSchedulerService
+from app.core.limiter import limiter
 from app.config.settings import settings
 from app.utils.logging import setup_logging
 from app.core.celery_app import (
@@ -25,6 +29,20 @@ from app.api.routes import (
 
 
 setup_logging(settings.log_level)
+
+
+def _rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded
+) -> JSONResponse:
+    """Custom JSON response for rate limit violations, ensuring API consistency."""
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "Rate Limit Exceeded",
+            "detail": str(exc.detail),
+        },
+        headers={"Retry-After": "60"},  # Standard hint for clients
+    )
 
 
 # Global scheduler instance
@@ -67,6 +85,10 @@ def create_app() -> FastAPI:
         version=settings.api_version,
         lifespan=lifespan,
     )
+
+    # Limiter and exception handler setup
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # Include API routes
     app.include_router(admin.router)
