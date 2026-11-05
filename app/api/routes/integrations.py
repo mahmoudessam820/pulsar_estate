@@ -1,8 +1,10 @@
 import uuid
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 
+from app.core.limiter import limiter
+from app.config.settings import settings
 from app.auth.dependencies import get_current_user, get_current_integration_user
 from app.auth.api_key_service import ApiKeyService
 from app.api.deps import get_api_key_service
@@ -25,14 +27,16 @@ router = APIRouter(prefix="/api/v1/integrations", tags=["Integrations"])
     summary="Generate a new API key",
     description="Creates a new API key for third-party integrations. The raw key is returned only once.",
 )
+@limiter.limit(settings.RATE_LIMIT_INTEGRATIONS)
 async def create_api_key(
-    request: ApiKeyCreateRequest,
+    request: Request,
+    payload: ApiKeyCreateRequest,
     current_user: User = Depends(get_current_user),
     service: ApiKeyService = Depends(get_api_key_service),
 ):
     try:
         result = await service.create_api_key(
-            user_id=str(current_user.id), name=request.name
+            user_id=str(current_user.id), name=payload.name
         )
         return result
     except Exception as e:
@@ -51,7 +55,9 @@ async def create_api_key(
     summary="List API keys",
     description="Retrieve all API keys associated with the current user.",
 )
+@limiter.limit(settings.RATE_LIMIT_INTEGRATIONS)
 async def list_api_keys(
+    request: Request,
     current_user: User = Depends(get_current_user),
     service: ApiKeyService = Depends(get_api_key_service),
 ):
@@ -65,7 +71,9 @@ async def list_api_keys(
     summary="Revoke an API key",
     description="Revokes (deactivates) an existing API key.",
 )
+@limiter.limit(settings.RATE_LIMIT_INTEGRATIONS)
 async def revoke_api_key(
+    request: Request,
     key_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     service: ApiKeyService = Depends(get_api_key_service),
@@ -97,7 +105,9 @@ async def revoke_api_key(
     summary="Test API Key Authentication",
     description="A protected endpoint that verifies the provided API key and returns the associated user's public profile.",
 )
+@limiter.limit(settings.RATE_LIMIT_INTEGRATIONS)
 async def get_integration_status(
+    request: Request,
     current_user: User = Depends(get_current_integration_user),
 ):
     """
