@@ -7,6 +7,7 @@ from app.config.settings import settings
 from app.core.pipeline.tasks import execute_pipeline_task
 from app.data.repositories.base import InsightRepositoryBase, PipelineRunRepositoryBase
 from app.providers.embedding.base import EmbeddingProviderBase
+from app.providers.search.utils import is_safe_query, is_real_estate_query
 from app.api.deps import (
     get_insight_repository,
     get_pipeline_run_repository,
@@ -78,6 +79,25 @@ async def generate_on_demand_insight(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Daily on-demand query limit exceeded. Please upgrade your plan.",
+        )
+
+    # 1.5. Validate Query Safety and Domain Relevance (NEW)
+    if not is_safe_query(payload.query):
+        logger.warning(
+            f"Blocked unsafe query from user {current_user.id}: {payload.query}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query contains invalid characters or potentially malicious patterns.",
+        )
+
+    if not is_real_estate_query(payload.query):
+        logger.warning(
+            f"Blocked out-of-domain query from user {current_user.id}: {payload.query}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query must be related to real estate markets, properties, or investments (e.g., 'Dubai villa rental trends').",
         )
 
     # 2. Generate embedding and check semantic cache
