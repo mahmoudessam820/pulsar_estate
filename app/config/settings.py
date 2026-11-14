@@ -14,9 +14,32 @@ class Settings(BaseSettings):
         default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$"
     )
 
-    # AI & Pipeline
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_api_key: SecretStr = Field(default=SecretStr(""))
+    # AI Provider Selection & Configuration
+    ai_provider: str = Field(
+        default="ollama", 
+        description="Active AI provider: ollama, openai, huggingface, nvidia, lmstudio"
+    )
+
+    # Ollama (Local or Cloud)
+    ollama_base_url: str = Field(default="http://localhost:11434", description="Ollama base URL")
+    ollama_api_key: SecretStr = Field(default=SecretStr(""), description="Ollama API key")
+    ollama_model: str = Field(default="qwen2.5:3b", description="Ollama model name")
+
+    # OpenAI
+    openai_api_key: SecretStr = Field(default=SecretStr(""), description="OpenAI API key")
+    openai_model: str = Field(default="gpt-4o-mini", description="OpenAI model name")
+
+    # Hugging Face (Inference API)
+    hf_inference_api_key: SecretStr = Field(default=SecretStr(""), description="Hugging Face Inference API key")
+    hf_inference_model: str = Field(default="mistralai/Mixtral-8x7B-Instruct-v0.1", description="HF Inference model")
+
+    # NVIDIA NIM
+    nvidia_api_key: SecretStr = Field(default=SecretStr(""), description="NVIDIA NIM API key")
+    nvidia_model: str = Field(default="nvidia/nemotron-3.5-super-vl-120b-a12b", description="NVIDIA NIM model")
+
+    # LM Studio (Local)
+    lmstudio_base_url: str = Field(default="http://localhost:1234/v1", description="LM Studio local server URL")
+    lmstudio_model: str = Field(default="local-model", description="LM Studio loaded model name")
 
     # Auth & Security
     admin_api_key: SecretStr = Field(

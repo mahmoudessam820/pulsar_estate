@@ -20,7 +20,7 @@ MIN_MEANINGFUL_PATH_LENGTH: Final[int] = 2
 # still counted — they are the primary SQLi delimiter.
 BENIGN_SPECIAL_CHARS: Final[FrozenSet[str]] = frozenset({".", "-", ","})
 
-BLACKLISTED_DOMAINS: Final[FrozenSet[str]] = frozenset({"youtube.com", "tiktok.com"})
+BLACKLISTED_DOMAINS: Final[FrozenSet[str]] = frozenset({"youtube.com", "tiktok.com", "apple.com", "pinterest.com"})
 
 # ---------------------------------------------------------------------------
 # Compiled patterns (built once at import time)

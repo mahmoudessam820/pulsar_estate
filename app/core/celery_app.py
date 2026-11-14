@@ -24,5 +24,10 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_track_started=True,
-    task_time_limit=600,  # Hard timeout of 10 minutes for safety
+    # Give the local model enough time to complete the full Map-Reduce pipeline without being prematurely killed.
+    # You can adjust this value based on your specific model and hardware capabilities may be necessary. 
+    # For example, if your model takes longer than 30 minutes to process a single request, you may need to increase this value,
+    # but this very large time is not accepted in the real world.
+    # If you will use cloud-hosted LLMs, you can reduce this value to something more reasonable like 60 seconds.
+    task_time_limit=1800,  # Hard timeout of (30 minutes) for local LLMs.
 )
