@@ -5,7 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.pipeline.pipeline_service import PipelineService
 from app.providers.search.duckduckgo import DuckDuckGoSearchProvider
 from app.providers.crawler.crawl4ai import Crawl4AIProvider
-from app.providers.ai.ollama import OllamaCloudProvider
+from app.providers.ai.base import AIProviderBase
+from app.providers.ai.ollama import OllamaProvider
+from app.providers.ai.openai import OpenAIProvider
+from app.providers.ai.huggingface import HuggingFaceProvider
+from app.providers.ai.nvidia import NvidiaProvider
+from app.providers.ai.lmstudio import LMStudioProvider
 from app.data.repositories.insight_repo import PostgresInsightRepository
 from app.providers.embedding.base import EmbeddingProviderBase
 from app.providers.embedding.huggingface import HuggingFaceEmbeddingProvider
@@ -14,6 +19,23 @@ from app.config.settings import settings
 
 
 logger = logging.getLogger(__name__)
+
+
+def get_ai_provider() -> AIProviderBase:
+    provider_type = settings.ai_provider.lower()
+    logger.info(f"Resolving AI Provider: {provider_type}")
+    
+    if provider_type == "openai":
+        return OpenAIProvider()
+    elif provider_type == "huggingface":
+        return HuggingFaceProvider()
+    elif provider_type == "nvidia":
+        return NvidiaProvider()
+    elif provider_type == "lmstudio":
+        return LMStudioProvider()
+    else:
+        # Default to Ollama (supports both local and cloud via settings)
+        return OllamaProvider()
 
 
 def get_embedding_provider() -> EmbeddingProviderBase:
@@ -45,7 +67,7 @@ def build_pipeline(db: AsyncSession) -> PipelineService:
     # 1. Initialize Providers
     search_provider = DuckDuckGoSearchProvider()
     crawl_provider = Crawl4AIProvider()
-    ai_provider = OllamaCloudProvider()
+    ai_provider = get_ai_provider()
 
     # 2. Initialize Repositories
     insight_repository = PostgresInsightRepository(db=db)
