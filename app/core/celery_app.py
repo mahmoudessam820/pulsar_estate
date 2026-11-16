@@ -25,7 +25,7 @@ celery_app.conf.update(
     enable_utc=True,
     task_track_started=True,
     # Give the local model enough time to complete the full Map-Reduce pipeline without being prematurely killed.
-    # You can adjust this value based on your specific model and hardware capabilities may be necessary. 
+    # You can adjust this value based on your specific model and hardware capabilities may be necessary.
     # For example, if your model takes longer than 30 minutes to process a single request, you may need to increase this value,
     # but this very large time is not accepted in the real world.
     # If you will use cloud-hosted LLMs, you can reduce this value to something more reasonable like 60 seconds.

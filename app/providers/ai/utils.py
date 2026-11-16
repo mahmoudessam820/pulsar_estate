@@ -4,6 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def parse_llm_json_response(content: str, provider_name: str) -> dict:
     """
     Bulletproof JSON parser.
@@ -25,7 +26,9 @@ def parse_llm_json_response(content: str, provider_name: str) -> dict:
 
         return json.loads(clean_content.strip())
     except json.JSONDecodeError:
-        logger.warning(f"AI returned invalid JSON. Provider: {provider_name}. Raw output snippet: {content[:500]}")
+        logger.warning(
+            f"AI returned invalid JSON. Provider: {provider_name}. Raw output snippet: {content[:500]}"
+        )
         return {
             "error": "Invalid JSON from AI",
             "raw_output": content,
