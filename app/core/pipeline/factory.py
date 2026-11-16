@@ -7,6 +7,7 @@ from app.providers.search.duckduckgo import DuckDuckGoSearchProvider
 from app.providers.crawler.crawl4ai import Crawl4AIProvider
 from app.providers.ai.base import AIProviderBase
 from app.providers.ai.ollama import OllamaProvider
+from app.providers.ai.groq import GroqProvider
 from app.providers.ai.openai import OpenAIProvider
 from app.providers.ai.huggingface import HuggingFaceProvider
 from app.providers.ai.nvidia import NvidiaProvider
@@ -24,9 +25,11 @@ logger = logging.getLogger(__name__)
 def get_ai_provider() -> AIProviderBase:
     provider_type = settings.ai_provider.lower()
     logger.info(f"Resolving AI Provider: {provider_type}")
-    
+
     if provider_type == "openai":
         return OpenAIProvider()
+    if provider_type == "groq":
+        return GroqProvider()
     elif provider_type == "huggingface":
         return HuggingFaceProvider()
     elif provider_type == "nvidia":

@@ -11,6 +11,7 @@ from app.providers.ai.utils import parse_llm_json_response
 logger = logging.getLogger(__name__)
 console = Console()
 
+
 class AIProviderBase(ABC):
     @abstractmethod
     async def analyze(self, documents: List[Dict]) -> Dict:
@@ -20,22 +21,41 @@ class AIProviderBase(ABC):
 
 class BaseLLMProvider(AIProviderBase):
     """
-    Concrete base class implementing the Map-Reduce strategy, concurrency limiting, 
-    and robust JSON parsing. 
+    Concrete base class implementing the Map-Reduce strategy, concurrency limiting,
+    and robust JSON parsing.
     Concrete providers only need to implement _call_llm_api.
     """
-    def __init__(self, provider_name: str, model: str, temperature: float = 0.2, max_concurrency: int = 3):
+
+    def __init__(
+        self,
+        provider_name: str,
+        model: str,
+        temperature: float = 0.2,
+        max_concurrency: int = 3,
+    ):
         self.provider_name = provider_name
         self.model = model
         self.temperature = temperature
+        self.max_concurrency = max_concurrency
         self.semaphore = asyncio.Semaphore(max_concurrency)
 
     async def analyze(self, documents: List[Dict]) -> Dict:
-        logger.info("Starting %s analysis | model=%s | docs=%d", self.provider_name, self.model, len(documents))
-        console.print(f"[dim]→ {self.provider_name} analyze[/dim] ({len(documents)} documents)")
+        logger.info(
+            "Starting %s analysis | model=%s | docs=%d",
+            self.provider_name,
+            self.model,
+            len(documents),
+        )
+        console.print(
+            f"[dim]→ {self.provider_name} analyze[/dim] ({len(documents)} documents)"
+        )
 
         # Validation & Filtering
-        valid_docs = [d for d in documents if d.get("content") and len(str(d.get("content", ""))) > 1000]
+        valid_docs = [
+            d
+            for d in documents
+            if d.get("content") and len(str(d.get("content", ""))) > 1000
+        ]
         logger.info(f"Filtered down to {len(valid_docs)} valid documents for analysis.")
 
         if not valid_docs:
@@ -47,12 +67,15 @@ class BaseLLMProvider(AIProviderBase):
         extracted_insights = await asyncio.gather(*extraction_tasks)
 
         structured_context = [
-            insight for insight in extracted_insights
+            insight
+            for insight in extracted_insights
             if "error" not in insight and insight.get("key_claims")
         ]
 
         if not structured_context:
-            return {"error": "AI failed to extract meaningful claims from any of the documents."}
+            return {
+                "error": "AI failed to extract meaningful claims from any of the documents."
+            }
 
         # Reduce Step: final synthesis
         logger.info("Starting final synthesis reduce step...")
@@ -63,12 +86,21 @@ class BaseLLMProvider(AIProviderBase):
             return final_result
 
         if "summary" not in final_result:
-            logger.warning(f"Reduce step missing 'summary'. Raw AI output: {final_result.get('raw_output', 'N/A')}")
-            console.print(f"[yellow]Warning: AI failed to generate required 'summary' field.[/yellow]")
-            return {"error": "AI failed to generate required 'summary' field", "raw_output": final_result}
+            logger.warning(
+                f"Reduce step missing 'summary'. Raw AI output: {final_result.get('raw_output', 'N/A')}"
+            )
+            console.print(
+                f"[yellow]Warning: AI failed to generate required 'summary' field.[/yellow]"
+            )
+            return {
+                "error": "AI failed to generate required 'summary' field",
+                "raw_output": final_result,
+            }
 
         if not isinstance(final_result.get("evidence"), list):
-            logger.warning("AI output missing 'evidence' list. Trust system will score evidence_coverage as 0.0")
+            logger.warning(
+                "AI output missing 'evidence' list. Trust system will score evidence_coverage as 0.0"
+            )
             final_result["evidence"] = []
 
         return final_result
@@ -76,21 +108,23 @@ class BaseLLMProvider(AIProviderBase):
     async def _extract_document_insights(self, doc: Dict) -> Dict:
         content = doc.get("content", "")
         if len(content) > 4000:
-            content = content[:4000] + "\n\n...[content truncated for extraction focus]..."
+            content = (
+                content[:4000] + "\n\n...[content truncated for extraction focus]..."
+            )
 
         prompt = f"""
             Analyze this SINGLE real estate article. Extract key data points. 
             You MUST use the exact metadata provided. Return ONLY valid JSON:
             {{
-                "source_url": "{doc.get('url')}",
+                "source_url": "{doc.get("url")}",
                 "key_claims": ["claim 1", "claim 2"],
                 "data_points": ["e.g., 'Prices rose 15% in Q1'"],
                 "sentiment": "positive|neutral|negative"
             }}
             
             Article Metadata:
-            - URL: {doc.get('url')}
-            - Published: {doc.get('published_at', 'Unknown')}
+            - URL: {doc.get("url")}
+            - Published: {doc.get("published_at", "Unknown")}
             
             Article Content:
             {content}
@@ -98,7 +132,6 @@ class BaseLLMProvider(AIProviderBase):
         return await self._call_llm_api_with_semaphore(prompt)
 
     async def _synthesize_insights(self, structured_context: List[Dict]) -> Dict:
-
         context_str = json.dumps(structured_context, indent=2)
 
         prompt = f"""
@@ -130,9 +163,17 @@ class BaseLLMProvider(AIProviderBase):
 
     async def _call_llm_api_with_semaphore(self, prompt: str) -> Dict:
         async with self.semaphore:
-            logger.debug("Acquired semaphore for API call. Current concurrency: %d", 3 - self.semaphore._value)
-            console.print(f"[dim]→ Calling {self.provider_name} API with concurrency limit[/dim] (Current concurrency: {3 - self.semaphore._value})")
-            
+            # Dynamically calculate active requests based on available permits
+            active_requests = self.max_concurrency - self.semaphore._value
+            logger.debug(
+                "Acquired semaphore. Active requests: %d/%d",
+                active_requests,
+                self.max_concurrency,
+            )
+            console.print(
+                f"[dim]→ Calling {self.provider_name} API[/dim] (Active: {active_requests}/{self.max_concurrency})"
+            )
+
             raw_content = await self._call_llm_api(prompt)
             return parse_llm_json_response(raw_content, self.provider_name)
 

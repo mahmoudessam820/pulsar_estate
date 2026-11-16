@@ -19,6 +19,7 @@ test_hf_embedding.py
 test_nvidia_embedding.py
 test_query_embedding.py
 test_nvidia_models.py
+test_groq.py
 
 http/
 storage/

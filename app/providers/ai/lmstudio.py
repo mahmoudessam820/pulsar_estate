@@ -8,13 +8,14 @@ from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+
 class LMStudioProvider(BaseLLMProvider):
     def __init__(self):
         super().__init__(
             provider_name="LM Studio",
             model=settings.lmstudio_model,
             temperature=0.2,
-            max_concurrency=2
+            max_concurrency=2,
         )
         self.base_url = settings.lmstudio_base_url
 
@@ -41,26 +42,40 @@ class LMStudioProvider(BaseLLMProvider):
 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 429:
-                    logger.warning(f"Rate limited (429) on Attempt {attempt + 1}/{max_retries}. Retrying in 4s...")
+                    logger.warning(
+                        f"Rate limited (429) on Attempt {attempt + 1}/{max_retries}. Retrying in 4s..."
+                    )
                     if attempt == max_retries - 1:
                         raise RuntimeError(f"HTTP 429 after {max_retries} retries")
                     await asyncio.sleep(4)
                     continue
 
-                logger.error("LM Studio API error | status=%d | %s", e.response.status_code, e.response.text[:200])
-                raise RuntimeError(f"HTTP {e.response.status_code}: {e.response.text[:200]}")
+                logger.error(
+                    "LM Studio API error | status=%d | %s",
+                    e.response.status_code,
+                    e.response.text[:200],
+                )
+                raise RuntimeError(
+                    f"HTTP {e.response.status_code}: {e.response.text[:200]}"
+                )
 
             except httpx.TimeoutException as e:
-                logger.warning(f"LM Studio timeout (Attempt {attempt + 1}/{max_retries}). Retrying in 3s...")
+                logger.warning(
+                    f"LM Studio timeout (Attempt {attempt + 1}/{max_retries}). Retrying in 3s..."
+                )
                 if attempt == max_retries - 1:
                     raise RuntimeError(f"Timeout after {max_retries} retries: {str(e)}")
                 await asyncio.sleep(3)
                 continue
 
             except (httpx.ReadError, httpx.ConnectError) as e:
-                logger.warning(f"LM Studio connection dropped (Attempt {attempt + 1}/{max_retries}). Retrying in 2s...")
+                logger.warning(
+                    f"LM Studio connection dropped (Attempt {attempt + 1}/{max_retries}). Retrying in 2s..."
+                )
                 if attempt == max_retries - 1:
-                    raise RuntimeError(f"Connection dropped after {max_retries} retries: {str(e)}")
+                    raise RuntimeError(
+                        f"Connection dropped after {max_retries} retries: {str(e)}"
+                    )
                 await asyncio.sleep(2)
                 continue
 
