@@ -22,7 +22,6 @@ from app.api.routes import (
     admin,
     auth,
     integrations,
-    pipeline,
     billing,
     events,
 )
@@ -97,7 +96,6 @@ def create_app() -> FastAPI:
     app.include_router(scheduled_queries.router)
     app.include_router(auth.router)
     app.include_router(integrations.router)
-    app.include_router(pipeline.router)
     app.include_router(billing.router)
     app.include_router(events.router)
 
