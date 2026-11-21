@@ -81,6 +81,11 @@ Pulsar Estate follows an **async-first, modular monolith** architecture. It deco
         │                  EVENTS / NOTIFICATIONS                     │
         │         (Push "Task Complete + Trust Badge" to User)        │
         └─────────────────────────────────────────────────────────────┘
+----------
+
+[![Architecture diagram of mahmoudessam820/pulsar_estate](https://gitdiagram.com/mahmoudessam820/pulsar_estate/diagram.png)](https://gitdiagram.com/mahmoudessam820/pulsar_estate?utm_source=readme&utm_medium=picture)
+
+----------
 
 ## 🛠️ Tech Stack
 
